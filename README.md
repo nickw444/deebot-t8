@@ -53,6 +53,7 @@ Commands:
 
 ## TODO
 
+* Handle error and offline cases
 * Support for building a map image using map received map data in real time
 
 ## Special Thanks

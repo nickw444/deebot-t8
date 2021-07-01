@@ -5,7 +5,7 @@ import ssl
 from threading import Thread
 from typing import Any, Tuple, List
 
-from paho.mqtt.client import Client  as MQTTClient
+from paho.mqtt.client import Client  as MQTTClient, MQTT_ERR_SUCCESS
 
 from .api_client import VacInfo
 from .credentials import Credentials
@@ -32,11 +32,15 @@ class SubscriptionClient:
         username = f"{credentials.user_id}@{REALM}"
         password = credentials.access_token
 
+        LOGGER.debug("client_id: %s", client_id)
+        LOGGER.debug("username: %s password: %s", username, password)
+
         self._client = MQTTClient(client_id=client_id)
-        self._client.username_pw_set(username, password)
 
         self._client.on_connect = self._on_connect
         self._client.on_message = self._on_message
+
+        self._client.username_pw_set(username, password)
 
         ssl_ctx = ssl.create_default_context()
         ssl_ctx.check_hostname = False
@@ -44,7 +48,9 @@ class SubscriptionClient:
         self._client.tls_set_context(ssl_ctx)
         self._client.tls_insecure_set(True)
 
-        self._client.connect(self._get_server_url(), port=8883)
+        url = self._get_server_url()
+        LOGGER.debug("MQTT connecting: {}".format(url))
+        self._client.connect(url, port=8883)
 
         if threaded:
             Thread(target=self._client.loop_forever)
@@ -52,6 +58,10 @@ class SubscriptionClient:
             self._client.loop_forever()
 
     def _on_connect(self, client, userdata, flags, rc):
+        if rc != MQTT_ERR_SUCCESS:
+            LOGGER.error("MQTT Connection failure. rc: %d", rc)
+            return
+
         LOGGER.debug("Connected with result code " + str(rc))
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
@@ -77,7 +87,7 @@ class SubscriptionClient:
 
     def subscribe(self, vac: VacInfo, handler):
         self._subscribers.append((vac, handler))
-        if self._client.is_connected:
+        if self._client is not None and self._client.is_connected:
             self._subscribe_topic(vac)
 
     def _subscribe_topic(self, vac: VacInfo):

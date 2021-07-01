@@ -1,5 +1,6 @@
 import logging
 import time
+import datetime
 from typing import Dict, Any
 
 import requests
@@ -87,6 +88,7 @@ class DeebotAuthClient:
             return Credentials(
                 access_token=resp_json['data']['accessToken'],
                 user_id=resp_json['data']['uid'],
+                expires_at=None
             )
         elif resp_json['code'] == '1005':
             raise Exception("Invalid email or password")
@@ -151,6 +153,10 @@ class DeebotAuthClient:
             return Credentials(
                 access_token=resp['token'],
                 user_id=resp['userId'],
+                # Tokens appear to have ~7 day expiry.
+                # TODO(NW): Decode the JWT header returned and pass along the
+                #  expiry in this field
+                expires_at=int(time.time()) + 60 * 60 * 24 * 7,
             )
 
         raise ApiErrorException("Unknown error: {}".format(resp))

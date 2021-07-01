@@ -77,10 +77,15 @@ class VacuumState:
     lifespan: List[ComponentLifeSpan] = None
     total_stats: TotalStats = None
 
+    _on_change = None
+
     def __setattr__(self, key, value):
+        super(VacuumState, self).__setattr__(key, value)
         if getattr(self, key) != value:
             LOGGER.debug("set state: {} -> {}".format(key, value))
-        super(VacuumState, self).__setattr__(key, value)
+
+        if self._on_change is not None:
+            self._on_change(self, key)
 
 
 class DeebotEntity:
@@ -91,8 +96,11 @@ class DeebotEntity:
         self._credentials = credentials
         self._vacinfo = vacinfo
 
-        self.state: VacuumState = VacuumState()
         self._subs_client.subscribe(self._vacinfo, self.handle_mqtt_message)
+        self._subscribers = []
+
+        self.state: VacuumState = VacuumState()
+        self.state._on_change = self._handle_state_change
 
     def force_refresh(self):
         requests = [
@@ -316,6 +324,13 @@ class DeebotEntity:
         else:
             LOGGER.warning(
                 "Unhandled http command: {} {}".format(command, data))
+
+    def _handle_state_change(self, state: VacuumState, attribute: str):
+        for subscriber in self._subscribers:
+            subscriber(state, attribute)
+
+    def subscribe(self, handler):
+        self._subscribers.append(handler)
 
     def set_true_detect(self, enabled: bool):
         self.exc_command('setTrueDetect', {

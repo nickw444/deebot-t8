@@ -25,6 +25,7 @@ class Config:
             creds = {
                 'userId': self.credentials.user_id,
                 'accessToken': self.credentials.access_token,
+                'expiresAt': self.credentials.expires_at,
             }
         return {
             'username': self.username,
@@ -42,6 +43,7 @@ class Config:
             creds = Credentials(
                 user_id=o['credentials']['userId'],
                 access_token=o['credentials']['accessToken'],
+                expires_at=o['credentials']['expiresAt'],
             )
 
         return Config(

@@ -1,7 +1,7 @@
 import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 import click
 from terminaltables import AsciiTable
@@ -9,6 +9,7 @@ from terminaltables import AsciiTable
 from deebot_t8 import (
     ApiClient, DeebotEntity, PortalClient, DeebotAuthClient,
     SubscriptionClient, VacInfo)
+from deebot_t8.entity import VacuumState
 from deebot_t8.md5 import md5_hex
 from .config import Config, load_config, write_config
 
@@ -48,8 +49,8 @@ def cli(ctx, config_file):
                                        config.country, config.continent)
         api_client = ApiClient(portal_client=portal_client)
         subscription_client = SubscriptionClient(
-            country='au',
-            continent='eu',
+            country=config.country,
+            continent=config.continent,
             device_id=config.device_id,
         )
 
@@ -72,27 +73,50 @@ def renew_access_tokens_impl(auth: DeebotAuthClient, config: Config):
 @click.option('--password', type=str, required=True)
 @click.option('--country', type=str, required=True)
 @click.option('--continent', type=str, required=True)
-def login(obj: TypedObj, username, password, country, continent):
+@click.option('--regen-device', type=bool)
+def login(obj: TypedObj, username, password, country, continent, regen_device):
     # TODO(NW): Infer continent from country
+
+    if not regen_device and obj.config is not None and obj.config.device_id is not None:
+        # Reuse existing device id if one exists
+        device_id = obj.config
+    else:
+        device_id = md5_hex(str(time.time()))
+
     obj.config = Config(
         username=username,
         password_hash=md5_hex(password),
-        device_id=md5_hex(str(time.time())),
+        device_id=device_id,
         country=country,
         continent=continent,
     )
+    # Recreate clients for this special use case to apply new configuration
+    # parameters (country, continent, device id)
+    portal_client = PortalClient(obj.config.device_id, obj.config.country,
+                                 obj.config.continent)
+    auth_client = DeebotAuthClient(portal_client, obj.config.device_id,
+                                   obj.config.country, obj.config.continent)
+
     write_config(obj.config_path, obj.config)
-    obj.config.credentials = renew_access_tokens_impl(obj.auth_client,
+    obj.config.credentials = renew_access_tokens_impl(auth_client,
                                                       obj.config)
     write_config(obj.config_path, obj.config)
+    click.echo("Authenticated with user {}, token expires at {}".format(
+        obj.config.credentials.user_id,
+        obj.config.credentials.expires_at,
+    ))
 
 
 @cli.command()
 @click.pass_obj
-def renew_access_tokens(obj: TypedObj):
+def renew_access_token(obj: TypedObj):
     obj.config.credentials = renew_access_tokens_impl(obj.auth_client,
                                                       obj.config)
     write_config(obj.config_path, obj.config)
+    click.echo("Renewed with user {}, token expires at {}".format(
+        obj.config.credentials.user_id,
+        obj.config.credentials.expires_at,
+    ))
 
 
 @cli.command()
@@ -142,12 +166,29 @@ def device(obj: TypedObj, device_name):
 @device.command()
 @click.pass_obj
 def subscribe(obj: TypedObj):
+    # Silence the logger to allow our table to display nicely
+    logging.getLogger('deebot_t8').setLevel(logging.ERROR)
+
+    # Force refresh stats every 30 seconds
     def poll():
         while True:
             obj.entity.force_refresh()
-            time.sleep(15)
+            time.sleep(30)
 
-    threading.Thread(target=poll).start()
+    def on_state_change(state: VacuumState, attribute: str):
+        click.clear()
+        table_data = [['Attribute', 'Value']]
+        for attr, value in asdict(state).items():
+            if isinstance(value, list):
+                for entry in value:
+                    table_data.append([attr, entry])
+            else:
+                table_data.append([attr, value])
+        print(AsciiTable(table_data).table)
+
+    obj.entity.subscribe(on_state_change)
+
+    threading.Thread(target=poll, daemon=True).start()
     obj.subscription_client.connect(threaded=False,
                                     credentials=obj.config.credentials)
 
