@@ -53,8 +53,14 @@ Commands:
 
 ## TODO
 
-* Handle error and offline cases
-* Support for building a map image using map received map data in real time
+- [ ] Handle error and offline cases
+- [ ] Support for building a map image using map received map data in real time
+- [ ] Code quality: strict type checking with Mypy
+- [ ] Code quality: Formating with black
+- [ ] Code quality: Linting with flake8
+- [ ] Enable quality checking in Travis CI
+- [ ] Automated tagged deploys via Travis
+- [ ] Tests
 
 ## Special Thanks
 
