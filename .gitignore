@@ -1,0 +1,4 @@
+.idea
+deebot.conf.json
+*.egg-info
+*.pyc
