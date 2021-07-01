@@ -61,3 +61,9 @@ Commands:
 * [mitmproxy](https://mitmproxy.org/) for reverse engineering HTTP(s) calls from the iOS app
 * https://github.com/And3rsL/Deebotozmo and https://github.com/wpietri/sucks for protocol details for authentication
 * https://github.com/Ligio/ozmo for inspiring and guiding the MQTT subscription implementation
+
+## Contributing
+
+I am more than happy to receive pull requests to add support for missing or broken features. Bug reports via issues also welcome, however is no guarantee of the bug being resolved
+
+As this library is intended to be narrow focused on the Deebot T8 line, depending on the complexity burden, pull requests to support additional robots may be rejected. 
