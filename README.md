@@ -2,6 +2,8 @@
 
 Yet another Deebot client library, intended to bring better support to Ozmo T8 range of robots.
 
+![Ecovacs Deebot OZMO T8 robot vacuum](./doc/img/deebot_t8.jpg)
+
 ## Supported Robots
 
 * Ecovacs Deebot Ozmo T8 (Model: OT8G)
