@@ -12,7 +12,7 @@ Yet another Deebot client library, intended to bring better support to Ozmo T8 r
 
 Other Deebot Ozmo T8 variant robots will likely also work, but have not been tested. Please open an issue if you have success with other models 😊 
 
-Models can be listed using the CLI: `./deebot-t8 list-devices`
+Models can be listed using the CLI: `deebot-t8 list-devices`
 
 ## Features
 
@@ -28,7 +28,7 @@ To install the base library for use in other Python projects:
 pip install deebot-t8
 ```
 
-To install the base library, as well as the CLI:
+To install the base library, as well as the CLI dependencies:
 
 ```
 pip install deebot-t8[cli]

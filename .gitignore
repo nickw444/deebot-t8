@@ -2,3 +2,5 @@
 deebot.conf.json
 *.egg-info
 *.pyc
+dist
+VERSION
