@@ -50,6 +50,4 @@ setup(
     entry_points={
         'console_scripts': ['deebot-t8=deebot_t8.cli.__main__:cli'],
     },
-    setup_requires=[],
-    tests_require=['pytest', 'pytest-asyncio', 'asynctest'],
 )
