@@ -1,11 +1,11 @@
 import json
 import logging
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
-from deebot_t8 import Credentials
-from deebot_t8.api_client import ApiClient, VacInfo
+from deebot_t8.api_client import ApiClient, DeviceInfo
 from deebot_t8.subscription_client import SubscriptionClient
 
 LOGGER = logging.getLogger(__name__)
@@ -89,14 +89,12 @@ class VacuumState:
 
 
 class DeebotEntity:
-    def __init__(self, api_client: ApiClient, subs_client: SubscriptionClient,
-                 credentials: Credentials, vacinfo: VacInfo):
+    def __init__(self, api_client: ApiClient, subs_client: SubscriptionClient, device: DeviceInfo):
         self._api_client = api_client
         self._subs_client = subs_client
-        self._credentials = credentials
-        self._vacinfo = vacinfo
+        self._device = device
 
-        self._subs_client.subscribe(self._vacinfo, self.handle_mqtt_message)
+        self._lock = threading.Lock()
         self._subscribers = []
 
         self.state: VacuumState = VacuumState()
@@ -284,8 +282,7 @@ class DeebotEntity:
                 "Unhandled mqtt command: {} {}".format(command, data))
 
     def exc_command(self, command, data=None):
-        return self._api_client.exc_command(
-            self._credentials, self._vacinfo, command, data)
+        return self._api_client.exc_command(self._device, command, data)
 
     def handle_command(self, command: str, resp):
         data = resp['data']
@@ -330,7 +327,18 @@ class DeebotEntity:
             subscriber(state, attribute)
 
     def subscribe(self, handler):
-        self._subscribers.append(handler)
+        with self._lock:
+            len_before = len(self._subscribers)
+            self._subscribers.append(handler)
+            if len_before == 0:
+                self._subs_client.subscribe(self._device, self.handle_mqtt_message)
+
+    def unsubscribe(self, handler):
+        with self._lock:
+            self._subscribers.remove(handler)
+            if len(self._subscribers) == 0:
+                self._subs_client.unsubscribe(
+                    self._device, self.handle_mqtt_message)
 
     def set_true_detect(self, enabled: bool):
         self.exc_command('setTrueDetect', {

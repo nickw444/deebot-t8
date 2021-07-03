@@ -2,7 +2,7 @@ import datetime
 import logging
 from typing import NamedTuple
 
-from deebot_t8.credentials import Credentials
+from deebot_t8.auth_client import Authenticator
 from deebot_t8.exceptions import ApiErrorException
 from deebot_t8.portal_client import PortalClient
 from deebot_t8.urls import APP_DO_PATH, DEVMANAGER_DO_PATH
@@ -10,28 +10,49 @@ from deebot_t8.urls import APP_DO_PATH, DEVMANAGER_DO_PATH
 LOGGER = logging.getLogger(__name__)
 
 
-class VacInfo(NamedTuple):
+class DeviceInfo(NamedTuple):
     id: str
-    resource: str
-    cls: str
+    id_short: str
+    name: str
+    product_category: str
+    model: str
+    status: int
 
+    dev_class: str
+    resource: str
 
 class ApiClient:
     def __init__(
             self,
             portal_client: PortalClient,
+            authenticator: Authenticator,
     ):
         self._portal_client = portal_client
+        self._authenticator = authenticator
 
-    def get_devices_list(self, credentials: Credentials):
+    def get_devices_list(self):
+        credentials = self._authenticator.authenticate()
         resp = self._portal_client.do_post(APP_DO_PATH, {
             "userid": credentials.user_id,
             "todo": "GetGlobalDeviceList",
         }, credentials=credentials)
-        return resp['devices']
+        rv = []
+        for device in resp['devices']:
+            rv.append(DeviceInfo(
+                id=device['did'],
+                id_short=device['name'],
+                name=device['nick'],
+                product_category=device['product_category'],
+                model=device['model'],
+                status=device['status'],
+                dev_class=device['class'],
+                resource=device['resource'],
+            ))
 
-    def exc_command(self, credentials: Credentials, recipient: VacInfo,
-                    command: str, data=None):
+        return rv
+
+    def exc_command(self, recipient: DeviceInfo, command: str, data=None):
+        credentials = self._authenticator.authenticate()
         payload = {
             'header': {
                 'pri': '2',
@@ -52,9 +73,9 @@ class ApiClient:
             "td": "q",
             "toId": recipient.id,
             "toRes": recipient.resource,
-            "toType": recipient.cls,
+            "toType": recipient.dev_class,
         }, query={
-            'mid': recipient.cls,
+            'mid': recipient.dev_class,
             'did': recipient.id,
             'td': 'q',
             'u': credentials.user_id,

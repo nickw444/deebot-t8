@@ -8,7 +8,8 @@ from terminaltables import AsciiTable
 
 from deebot_t8 import (
     ApiClient, DeebotEntity, PortalClient, DeebotAuthClient,
-    SubscriptionClient, VacInfo)
+    SubscriptionClient)
+from deebot_t8.auth_client import Authenticator
 from deebot_t8.entity import VacuumState
 from deebot_t8.md5 import md5_hex
 from .config import Config, load_config, write_config
@@ -43,13 +44,27 @@ def cli(ctx, config_file):
     subscription_client = None
 
     if config is not None:
-        portal_client = PortalClient(config.device_id, config.country,
-                                     config.continent)
-        auth_client = DeebotAuthClient(portal_client, config.device_id,
-                                       config.country, config.continent)
-        api_client = ApiClient(portal_client=portal_client)
-        subscription_client = SubscriptionClient(
+        portal_client = PortalClient(
+            device_id=config.device_id,
             country=config.country,
+            continent=config.continent)
+        auth_client = DeebotAuthClient(
+            portal_client=portal_client,
+            device_id=config.device_id,
+            country=config.country)
+        authenticator = Authenticator(
+            auth_client=auth_client,
+            country=config.country,
+            device_id=config.device_id,
+            account_id=config.username,
+            password_hash=config.password_hash,
+            cached_credentials=config.credentials,
+        )
+        api_client = ApiClient(
+            portal_client=portal_client,
+            authenticator=authenticator)
+        subscription_client = SubscriptionClient(
+            authenticator=authenticator,
             continent=config.continent,
             device_id=config.device_id,
         )
@@ -92,10 +107,14 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
     )
     # Recreate clients for this special use case to apply new configuration
     # parameters (country, continent, device id)
-    portal_client = PortalClient(obj.config.device_id, obj.config.country,
-                                 obj.config.continent)
-    auth_client = DeebotAuthClient(portal_client, obj.config.device_id,
-                                   obj.config.country, obj.config.continent)
+    portal_client = PortalClient(
+        device_id=obj.config.device_id,
+        country=obj.config.country,
+        continent=obj.config.continent)
+    auth_client = DeebotAuthClient(
+        portal_client=portal_client,
+        device_id=obj.config.device_id,
+        country=obj.config.country)
 
     write_config(obj.config_path, obj.config)
     obj.config.credentials = renew_access_tokens_impl(auth_client,
@@ -122,19 +141,19 @@ def renew_access_token(obj: TypedObj):
 @cli.command()
 @click.pass_obj
 def list_devices(obj: TypedObj):
-    devices = obj.api_client.get_devices_list(obj.config.credentials)
+    devices = obj.api_client.get_devices_list()
     table_data = [
         ['device id', 'name', 'product category', 'model', 'status'],
     ]
     for device in devices:
         table_data.append([
-            device['did'],
-            device['nick'],
-            device['product_category'],
-            device['model'],
+            device.id,
+            device.name,
+            device.product_category,
+            device.model,
             # status 0 seems to indicate offline?
             # status 1 online
-            device['status']
+            device.status
         ])
     print(AsciiTable(table_data).table)
 
@@ -144,9 +163,9 @@ def list_devices(obj: TypedObj):
 @click.argument('device-name', type=str, required=False)
 def device(obj: TypedObj, device_name):
     selected_device = None
-    devices = obj.api_client.get_devices_list(obj.config.credentials)
+    devices = obj.api_client.get_devices_list()
     for d in devices:
-        if d['nick'] == device_name:
+        if d.name == device_name:
             selected_device = d
             break
     else:
@@ -154,13 +173,10 @@ def device(obj: TypedObj, device_name):
             'Device with specified name ({}) could not be found.'.format(
                 device_name))
 
-    vacinfo = VacInfo(
-        id=selected_device['did'],
-        resource=selected_device['resource'],
-        cls=selected_device['class'],
-    )
-    obj.entity = DeebotEntity(obj.api_client, obj.subscription_client,
-                              obj.config.credentials, vacinfo)
+    obj.entity = DeebotEntity(
+        api_client=obj.api_client,
+        subs_client=obj.subscription_client,
+        device=selected_device)
 
 
 @device.command()
@@ -168,12 +184,6 @@ def device(obj: TypedObj, device_name):
 def subscribe(obj: TypedObj):
     # Silence the logger to allow our table to display nicely
     logging.getLogger('deebot_t8').setLevel(logging.ERROR)
-
-    # Force refresh stats every 30 seconds
-    def poll():
-        while True:
-            obj.entity.force_refresh()
-            time.sleep(30)
 
     def on_state_change(state: VacuumState, attribute: str):
         click.clear()
@@ -188,10 +198,10 @@ def subscribe(obj: TypedObj):
 
     obj.entity.subscribe(on_state_change)
 
-    threading.Thread(target=poll, daemon=True).start()
-    obj.subscription_client.connect(threaded=False,
-                                    credentials=obj.config.credentials)
-
+    # Force refresh stats via HTTP call every 30 seconds
+    while True:
+        obj.entity.force_refresh()
+        time.sleep(15)
 
 @device.command()
 @click.pass_obj

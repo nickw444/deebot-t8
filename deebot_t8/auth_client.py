@@ -1,7 +1,7 @@
 import logging
+import threading
 import time
-import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 import requests
 
@@ -21,11 +21,10 @@ AUTH_CLIENT_SECRET = "77ef58ce3afbe337da74aa8c5ab963a9"
 
 class DeebotAuthClient:
     def __init__(self, portal_client: PortalClient, device_id: str,
-                 country: str, continent: str):
+                 country: str):
         self._portal_client = portal_client
         self._device_id = device_id
         self._country = country
-        self._continent = continent
         self._meta = {
             "country": country,
             "lang": "EN",
@@ -90,8 +89,8 @@ class DeebotAuthClient:
                 user_id=resp_json['data']['uid'],
                 expires_at=None
             )
-        elif resp_json['code'] == '1005':
-            raise Exception("Invalid email or password")
+        elif resp_json['code'] in ('1005', '1010'):
+            raise InvalidCredentialsException("Invalid email or password")
         else:
             raise Exception("Unknown error: {} ({})".format(
                 resp_json['msg'],
@@ -167,3 +166,38 @@ class DeebotAuthClient:
         auth_code = self.do_get_authcode(exch_resp.user_id,
                                          exch_resp.access_token)
         return self.do_login_by_iot_token(exch_resp.user_id, auth_code)
+
+
+class Authenticator():
+    def __init__(self, auth_client: DeebotAuthClient, country: str, device_id: str,
+                 account_id: str, password_hash: str,
+                 cached_credentials: Credentials = None,
+                 on_credentials_changed: Callable[[Credentials], None] = None):
+        self._auth_client = auth_client
+        self._country = country
+        self._device_id = device_id
+
+        self._account_id = account_id
+        self._password_hash = password_hash
+
+        self._lock = threading.Lock()
+        self._credentials = cached_credentials
+        self._on_credentials_changed = on_credentials_changed
+
+    def authenticate(self, force=False):
+        with self._lock:
+            # TODO(NW): Handle expired credentials
+
+            if self._credentials is None or force:
+                LOGGER.debug("No cached credentials, performing login")
+                self._credentials = self._auth_client.login(
+                    self._account_id,
+                    self._password_hash)
+
+                if self._on_credentials_changed is not None:
+                    self._on_credentials_changed(self._credentials)
+
+            return self._credentials
+
+    def invalidate(self):
+        pass

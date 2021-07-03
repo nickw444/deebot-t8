@@ -1,4 +1,4 @@
-from .api_client import ApiClient, VacInfo
+from .api_client import ApiClient, DeviceInfo
 from .auth_client import DeebotAuthClient
 from .credentials import Credentials
 from .entity import DeebotEntity
@@ -7,11 +7,10 @@ from .subscription_client import SubscriptionClient
 
 __all__ = [
     ApiClient,
-    VacInfo,
+    DeviceInfo,
     DeebotAuthClient,
     Credentials,
     DeebotEntity,
     PortalClient,
     SubscriptionClient
 ]
-
