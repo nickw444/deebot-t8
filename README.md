@@ -6,6 +6,8 @@ Yet another Deebot client library, intended to bring better support to Ozmo T8 r
 <img alt="Ecovacs Deebot OZMO T8 robot vacuum" src="./doc/img/deebot_t8.jpg" height="250px" />
 </p>
 
+This library is used by [my Home Assistant custom component](https://github.com/nickw444/deebot-t8-hass) for the Deebot T8
+
 ## Supported Robots
 
 * Ecovacs Deebot Ozmo T8 (Model: OT8G)
@@ -53,7 +55,6 @@ Commands:
 
 ## TODO
 
-- [ ] Handle error and offline cases
 - [ ] Support for building a map image using map received map data in real time
 - [ ] Code quality: strict type checking with Mypy
 - [ ] Code quality: Formating with black
@@ -61,6 +62,7 @@ Commands:
 - [ ] Enable quality checking in Travis CI
 - [ ] Automated tagged deploys via Travis
 - [ ] Tests
+- [ ] Improve country/continent terminology
 
 ## Special Thanks
 
