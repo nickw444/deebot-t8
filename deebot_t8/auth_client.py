@@ -153,9 +153,10 @@ class DeebotAuthClient:
                 access_token=resp['token'],
                 user_id=resp['userId'],
                 # Tokens appear to have ~7 day expiry.
+                # Set expiry to 2 days to eagerly refresh
                 # TODO(NW): Decode the JWT header returned and pass along the
                 #  expiry in this field
-                expires_at=int(time.time()) + 60 * 60 * 24 * 7,
+                expires_at=int(time.time()) + 60 * 60 * 24 * 2,
             )
 
         raise ApiErrorException("Unknown error: {}".format(resp))
@@ -186,10 +187,15 @@ class Authenticator():
 
     def authenticate(self, force=False):
         with self._lock:
-            # TODO(NW): Handle expired credentials
-
+            should_login = False
             if self._credentials is None or force:
                 LOGGER.debug("No cached credentials, performing login")
+                should_login = True
+            elif self._credentials.expires_at < time.time():
+                LOGGER.debug("Credentials have expired, performing login")
+                should_login = True
+
+            if should_login:
                 self._credentials = self._auth_client.login(
                     self._account_id,
                     self._password_hash)

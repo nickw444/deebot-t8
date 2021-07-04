@@ -1,5 +1,5 @@
 import logging
-import threading
+import signal
 import time
 from dataclasses import dataclass, asdict
 
@@ -8,7 +8,7 @@ from terminaltables import AsciiTable
 
 from deebot_t8 import (
     ApiClient, DeebotEntity, PortalClient, DeebotAuthClient,
-    SubscriptionClient)
+    SubscriptionClient, Credentials)
 from deebot_t8.auth_client import Authenticator
 from deebot_t8.entity import VacuumState
 from deebot_t8.md5 import md5_hex
@@ -39,6 +39,10 @@ def cli(ctx, config_file):
 
     config = load_config(config_file)
 
+    def on_credentials_changed(credentials: Credentials):
+        config.credentials = credentials
+        write_config(config_file, config)
+
     auth_client = None
     api_client = None
     subscription_client = None
@@ -59,6 +63,7 @@ def cli(ctx, config_file):
             account_id=config.username,
             password_hash=config.password_hash,
             cached_credentials=config.credentials,
+            on_credentials_changed=on_credentials_changed
         )
         api_client = ApiClient(
             portal_client=portal_client,
@@ -150,7 +155,7 @@ def list_devices(obj: TypedObj):
             device.id,
             device.name,
             device.product_category,
-            device.model,
+            device.model_name,
             # status 0 seems to indicate offline?
             # status 1 online
             device.status
@@ -183,7 +188,7 @@ def device(obj: TypedObj, device_name):
 @click.pass_obj
 def subscribe(obj: TypedObj):
     # Silence the logger to allow our table to display nicely
-    logging.getLogger('deebot_t8').setLevel(logging.ERROR)
+    # logging.getLogger('deebot_t8').setLevel(logging.ERROR)
 
     def on_state_change(state: VacuumState, attribute: str):
         click.clear()
@@ -198,10 +203,14 @@ def subscribe(obj: TypedObj):
 
     obj.entity.subscribe(on_state_change)
 
-    # Force refresh stats via HTTP call every 30 seconds
-    while True:
-        obj.entity.force_refresh()
-        time.sleep(15)
+    def handler(signum, frame):
+        obj.entity.unsubscribe(on_state_change)
+        raise KeyboardInterrupt
+
+    # Wait forever (until SIGINT at least)
+    signal.signal(signal.SIGINT, handler)
+    signal.pause()
+
 
 @device.command()
 @click.pass_obj

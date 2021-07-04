@@ -15,11 +15,14 @@ class DeviceInfo(NamedTuple):
     id_short: str
     name: str
     product_category: str
-    model: str
+    model_code: str
+    model_name: str
     status: int
 
     dev_class: str
     resource: str
+
+    icon_url: str
 
 class ApiClient:
     def __init__(
@@ -36,6 +39,7 @@ class ApiClient:
             "userid": credentials.user_id,
             "todo": "GetGlobalDeviceList",
         }, credentials=credentials)
+
         rv = []
         for device in resp['devices']:
             rv.append(DeviceInfo(
@@ -43,10 +47,12 @@ class ApiClient:
                 id_short=device['name'],
                 name=device['nick'],
                 product_category=device['product_category'],
-                model=device['model'],
+                model_code=device['model'],
+                model_name=device['deviceName'],
                 status=device['status'],
                 dev_class=device['class'],
                 resource=device['resource'],
+                icon_url=device['icon'],
             ))
 
         return rv
@@ -89,4 +95,4 @@ class ApiClient:
         if resp['resp']['body']['code'] != 0:
             raise ApiErrorException(resp)
 
-        return resp['resp']['body']
+        return resp['resp']

@@ -3,7 +3,7 @@ import logging
 import re
 import ssl
 import threading
-from typing import Any, Tuple, List, Callable, Dict
+from typing import Any, Tuple, List, Callable, Dict, Set
 
 from paho.mqtt.client import Client  as MQTTClient, MQTT_ERR_SUCCESS
 
@@ -32,7 +32,7 @@ class SubscriptionClient:
 
         self._lock = threading.Lock()
         # (device id, handler(command, data))
-        self._subscribers: List[Tuple[DeviceInfo, HandlerT]] = []
+        self._subscribers: Set[Tuple[DeviceInfo, HandlerT]] = set()
         self._client = None
 
     def _connect(self):
@@ -97,7 +97,7 @@ class SubscriptionClient:
 
     def subscribe(self, device: DeviceInfo, handler):
         with self._lock:
-            self._subscribers.append((device, handler))
+            self._subscribers.add((device, handler))
 
             if self._client is None:
                 self._connect()

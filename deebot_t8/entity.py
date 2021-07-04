@@ -1,11 +1,13 @@
 import json
 import logging
 import threading
+import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import List, Callable, Set
 
 from deebot_t8.api_client import ApiClient, DeviceInfo
+from deebot_t8.exceptions import ApiErrorException
 from deebot_t8.subscription_client import SubscriptionClient
 
 LOGGER = logging.getLogger(__name__)
@@ -58,6 +60,10 @@ class VacuumState:
         SPOT_AREA = 2
         CUSTOM_AREA = 3
 
+    is_online: bool = None
+    firmware_version: str = None
+    hardware_version: str = None
+
     state: RobotState = None
     clean_type: CleanType = None
     clean_stats: CleanStats = None
@@ -71,8 +77,10 @@ class VacuumState:
     vacuum_speed: Speed = None
     clean_count: int = None
 
-    enable_cleaning_preference: bool = None
+    cleaning_preference_enabled: bool = None
     true_detect_enabled: bool = None
+    auto_boost_suction_enabled: bool = None
+    auto_empty_enabled: bool = None
 
     lifespan: List[ComponentLifeSpan] = None
     total_stats: TotalStats = None
@@ -95,25 +103,36 @@ class DeebotEntity:
         self._device = device
 
         self._lock = threading.Lock()
-        self._subscribers = []
+        self._subscribers: Set[Callable[[VacuumState, str], None]] = set()
 
-        self.state: VacuumState = VacuumState()
+        self.state: VacuumState = VacuumState(is_online=device.status == 1)
         self.state._on_change = self._handle_state_change
+
+        self._should_poll = False
+        self._err_count = 0
 
     def force_refresh(self):
         requests = [
             ('getInfo', [
+                "getCleanInfo_V2",
                 "getWaterInfo",
                 "getChargeState",
                 "getBattery",
                 "getStats",
-                "getCleanInfo_V2",
+                "getError",
+            ]),
+            # Make an additional getInfo call to avoid response payload size
+            # restriction. It appears larger response payloads are returned via
+            # MQTT across multiple messages. This saves additional
+            # implementation complexity to support that.
+            ('getInfo', [
+                "getTotalStats",
                 "getSpeed",
                 "getCleanCount",
-                "getTotalStats",
                 "getTrueDetect",
-                "getCleanPreference",
-                "getError",
+                'getCleanPreference',
+                "getAutoEmpty",
+                "getCarpertPressure", # <- Yes there is actually a typo in the api 🤷‍
             ]),
             ('getLifeSpan', [
                 "sideBrush",
@@ -128,10 +147,11 @@ class DeebotEntity:
 
         for (command, params) in requests:
             resp = self.exc_command(command, params)
-            self.handle_command(command, resp)
+            self.handle_command(command, resp['body'], resp['header'])
 
-    def handle_mqtt_message(self, command, body):
-        LOGGER.debug("mq: {} {}".format(command, body))
+    def handle_mqtt_message(self, command, body, log=True):
+        if log:
+            LOGGER.debug("mq: {} {}".format(command, body))
 
         data = body['data']
         if command == "onBattery":
@@ -156,7 +176,7 @@ class DeebotEntity:
 
                 if clean_type == 'auto':
                     self.state.clean_type = VacuumState.CleanType.AUTO
-                if clean_type == 'spotArea':
+                elif clean_type == 'spotArea':
                     self.state.clean_type = VacuumState.CleanType.SPOT_AREA
                 elif clean_type == 'customArea':
                     self.state.clean_type = VacuumState.CleanType.CUSTOM_AREA
@@ -171,7 +191,7 @@ class DeebotEntity:
                 self.state.state = VacuumState.RobotState.RETURNING
                 self.state.clean_type = None
         elif command == 'onCleanPreference':
-            self.state.enable_cleaning_preference = bool(data['enable'])
+            self.state.cleaning_preference_enabled = bool(data['enable'])
         elif command == 'onFwBuryPoint':
             cmd_payload = json.loads(data['content'])
             cmd_rn = cmd_payload['rn']
@@ -189,6 +209,8 @@ class DeebotEntity:
                 }
                 self.state.water_level = water_flow_map[
                     cmd_data['waterAmount']]
+                self.state.auto_boost_suction_enabled = bool(
+                    cmd_data['isPressurized'])
             else:
                 LOGGER.debug(
                     "Unhandled onFwBuryPoint message: {} {}".format(cmd_rn,
@@ -282,9 +304,28 @@ class DeebotEntity:
                 "Unhandled mqtt command: {} {}".format(command, data))
 
     def exc_command(self, command, data=None):
-        return self._api_client.exc_command(self._device, command, data)
+        try:
+            rv = self._api_client.exc_command(self._device, command, data)
+        except ApiErrorException as e:
+            self._err_count += 1
+            if self._err_count >= 2:
+                self.state.is_online = False
+            raise e
 
-    def handle_command(self, command: str, resp):
+        self._err_count = 0
+        self.state.is_online = True
+        return rv
+
+    def handle_command(self, command: str, resp, header):
+        if header is not None and 'fwVer' in header:
+            self.state.firmware_version = header['fwVer']
+        if header is not None and 'hwVer' in header:
+            self.state.hardware_version = header['hwVer']
+
+        if 'data' not in resp:
+            LOGGER.warning("No data provided for command: %s", command)
+            return
+
         data = resp['data']
         LOGGER.debug("http: {} {}".format(command, data))
 
@@ -302,11 +343,11 @@ class DeebotEntity:
         ):
             # Handle overlapping commands via MQTT routines
             mq_command = 'on' + command.lstrip('get')
-            self.handle_mqtt_message(mq_command, resp)
+            self.handle_mqtt_message(mq_command, resp, log=False)
 
         elif command == 'getInfo':
             for key, value in data.items():
-                self.handle_command(key, value)
+                self.handle_command(key, value, None)
         elif command == 'getTotalStats':
             self.state.total_stats = TotalStats(
                 area=data['area'],
@@ -318,6 +359,10 @@ class DeebotEntity:
                 ComponentLifeSpan(component=x['type'], left=x['left'],
                                   total=x['total']) for x in data
             ]
+        elif command == 'getCarpertPressure':
+            self.state.auto_boost_suction_enabled = bool(data['enable'])
+        elif command == 'getAutoEmpty':
+            self.state.auto_empty_enabled = bool(data['enable'])
         else:
             LOGGER.warning(
                 "Unhandled http command: {} {}".format(command, data))
@@ -326,17 +371,41 @@ class DeebotEntity:
         for subscriber in self._subscribers:
             subscriber(state, attribute)
 
+    def _start_polling(self):
+        def poll_task():
+            LOGGER.debug("Starting polling for %s", self._device.id)
+            while self._should_poll:
+                try:
+                    self.force_refresh()
+                except Exception as e:
+                    LOGGER.exception("Error whilst polling, robot might be offline?")
+                time.sleep(60 * 2)
+
+            LOGGER.debug("Poll task for %s exiting", self._device.id)
+
+        self._should_poll = True
+        threading.Thread(target=poll_task, daemon=True).start()
+
+    def _stop_polling(self):
+        LOGGER.debug("Stopping polling for %s", self._device.id)
+        self._should_poll = False
+
     def subscribe(self, handler):
         with self._lock:
             len_before = len(self._subscribers)
-            self._subscribers.append(handler)
+            self._subscribers.add(handler)
             if len_before == 0:
-                self._subs_client.subscribe(self._device, self.handle_mqtt_message)
+                # No subscribers! Subscribe and begin polling!
+                self._subs_client.subscribe(
+                    self._device, self.handle_mqtt_message)
+                self._start_polling()
 
     def unsubscribe(self, handler):
         with self._lock:
             self._subscribers.remove(handler)
             if len(self._subscribers) == 0:
+                # No subscribers left! Stop polling and unsubscribe
+                self._stop_polling()
                 self._subs_client.unsubscribe(
                     self._device, self.handle_mqtt_message)
 
@@ -350,13 +419,31 @@ class DeebotEntity:
             'enable': int(enabled),
         })
 
+    def set_clean_count(self, count: bool):
+        self.exc_command('setCleanCount', {
+            'count': int(count),
+        })
+
+    def set_auto_empty(self, enabled: bool):
+        self.exc_command('setAutoEmpty', {
+            'enable': int(enabled),
+        })
+        # Optimistically update state, since no MQTT confirmation is received
+        # for this setter.
+        self.state.auto_empty_enabled = enabled
+
+    def set_auto_boost_suction(self, enabled: bool):
+        self.exc_command('setCarpertPressure', {
+            'enable': int(enabled),
+        })
+
     def set_water_level(self, level: VacuumState.WaterFlow):
         # TODO(NW): Colocate with deserialization and definition.
         water_level_map = {
-            [VacuumState.WaterFlow.LOW]: 1,
-            [VacuumState.WaterFlow.MEDIUM]: 2,
-            [VacuumState.WaterFlow.HIGH]: 3,
-            [VacuumState.WaterFlow.ULTRA_HIGH]: 4,
+            VacuumState.WaterFlow.LOW: 1,
+            VacuumState.WaterFlow.MEDIUM: 2,
+            VacuumState.WaterFlow.HIGH: 3,
+            VacuumState.WaterFlow.ULTRA_HIGH: 4,
         }
         self.exc_command('setWaterInfo', {
             'amount': water_level_map[level],
@@ -365,10 +452,10 @@ class DeebotEntity:
     def set_vacuum_speed(self, speed: VacuumState.Speed):
         # TODO(NW): Colocate with deserialization and definition.
         speed_map = {
-            [VacuumState.Speed.QUIET]: 1000,
-            [VacuumState.Speed.STANDARD]: 0,
-            [VacuumState.Speed.MAX]: 1,
-            [VacuumState.Speed.MAX_PLUS]: 2,
+            VacuumState.Speed.QUIET: 1000,
+            VacuumState.Speed.STANDARD: 0,
+            VacuumState.Speed.MAX: 1,
+            VacuumState.Speed.MAX_PLUS: 2,
         }
         self.exc_command('setSpeed', {
             'speed': speed_map[speed],
