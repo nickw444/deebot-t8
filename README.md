@@ -53,17 +53,6 @@ Commands:
   renew-access-tokens
 ```
 
-## TODO
-
-- [ ] Support for building a map image using map received map data in real time
-- [ ] Code quality: strict type checking with Mypy
-- [ ] Code quality: Formating with black
-- [ ] Code quality: Linting with flake8
-- [ ] Enable quality checking in Travis CI
-- [ ] Automated tagged deploys via Travis
-- [ ] Tests
-- [ ] Improve country/continent terminology
-
 ## Special Thanks
 
 * [mitmproxy](https://mitmproxy.org/) for reverse engineering HTTP(s) calls from the iOS app
