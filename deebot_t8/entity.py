@@ -223,11 +223,11 @@ class DeebotEntity:
             }
             self.state.vacuum_speed = speed_map[data["speed"]]
         elif command == "onStats":
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877148', 'type': 'customArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 61, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877148', 'type': 'customArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 61, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
             # TODO(NW): Handle mopping info in this message (enablePowerMop, powerMopType)
             self.state.clean_stats = CleanStats(
                 area=data["area"],
@@ -261,12 +261,12 @@ class DeebotEntity:
             }
             self.state.water_level = water_flow_map[data["amount"]]
         elif command == "reportStats":
-            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}}
-            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 2, 'startReason': 1, 'type': 'spotArea', 'mapCount': 9, 'area': 0, 'start': '1624877304', 'time': 61, 'content': '1', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}}
-            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'customArea'}}
-            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 1, 'startReason': 1, 'type': 'customArea', 'mapCount': 9, 'area': 0, 'start': '1624877148', 'time': 0, 'content': '-2382.000000,-563.000000,-1998.000000,-1323.000000', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}}
-            # mq: reportStats {'data': {'cid': '2147037274', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}}
-            # mq: reportStats {'data': {'cid': '67289670', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 2, 'startReason': 1, 'type': 'auto'}}
+            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 2, 'startReason': 1, 'type': 'spotArea', 'mapCount': 9, 'area': 0, 'start': '1624877304', 'time': 61, 'content': '1', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'customArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 1, 'startReason': 1, 'type': 'customArea', 'mapCount': 9, 'area': 0, 'start': '1624877148', 'time': 0, 'content': '-2382.000000,-563.000000,-1998.000000,-1323.000000', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2147037274', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '67289670', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 2, 'startReason': 1, 'type': 'auto'}} # noqa: E501
             pass
         elif command == "onBreakPointStatus":
             pass
@@ -377,7 +377,7 @@ class DeebotEntity:
             while self._should_poll:
                 try:
                     self.force_refresh()
-                except Exception as e:
+                except Exception:
                     LOGGER.exception("Error whilst polling, robot might be offline?")
                 time.sleep(60 * 2)
 

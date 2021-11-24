@@ -3,7 +3,7 @@ import logging
 import re
 import ssl
 import threading
-from typing import Any, Tuple, List, Callable, Dict, Set
+from typing import Any, Tuple, Callable, Dict, Set
 
 from paho.mqtt.client import Client as MQTTClient, MQTT_ERR_SUCCESS
 
@@ -12,7 +12,8 @@ from .auth_client import Authenticator
 from .urls import REALM
 
 TOPIC_RE = re.compile(
-    "iot/atr/(?P<command>[^/]+)/(?P<device_id>[^/]+)/(?P<device_cls>[^/]+)/(?P<device_resource>[^/]+)/j"
+    "iot/atr/(?P<command>[^/]+)/(?P<device_id>[^/]+)/(?P<device_cls>[^/]+)/"
+    "(?P<device_resource>[^/]+)/j"
 )
 
 LOGGER = logging.getLogger(__name__)

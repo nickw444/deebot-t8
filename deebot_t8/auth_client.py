@@ -50,13 +50,18 @@ class DeebotAuthClient:
     def _get_login_url(self):
         tld = "cn" if self._country == "cn" else "com"
         login_path = "user/loginCheckMobile" if self._country == "cn" else "user/login"
-        return "https://gl-{country}-api.ecovacs.{tld}/v1/private/{country}/{lang}/{deviceId}/{appCode}/{appVersion}/{channel}/{deviceType}/{login_path}".format(
-            login_path=login_path, tld=tld, **self._meta
-        )
+        return (
+            "https://gl-{country}-api.ecovacs.{tld}/v1/private/{country}/"
+            "{lang}/{deviceId}/{appCode}/{appVersion}/{channel}/"
+            "{deviceType}/{login_path}"
+        ).format(login_path=login_path, tld=tld, **self._meta)
 
     def _get_authcode_url(self):
         tld = "cn" if self._country == "cn" else "com"
-        return f"https://gl-{self._country}-openapi.ecovacs.{tld}/v1/global/auth/getAuthCode"
+        return (
+            f"https://gl-{self._country}-openapi.ecovacs.{tld}/"
+            f"v1/global/auth/getAuthCode"
+        )
 
     def do_account_password_exchange(
         self, account_id: str, password_hash: str
