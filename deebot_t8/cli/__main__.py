@@ -7,8 +7,13 @@ import click
 from terminaltables import AsciiTable
 
 from deebot_t8 import (
-    ApiClient, DeebotEntity, PortalClient, DeebotAuthClient,
-    SubscriptionClient, Credentials)
+    ApiClient,
+    DeebotEntity,
+    PortalClient,
+    DeebotAuthClient,
+    SubscriptionClient,
+    Credentials,
+)
 from deebot_t8.auth_client import Authenticator
 from deebot_t8.entity import VacuumState
 from deebot_t8.md5 import md5_hex
@@ -31,11 +36,12 @@ class TypedObj:
 
 @click.group()
 @click.pass_context
-@click.option('--config-file', type=click.Path(exists=False),
-              default='deebot.conf.json')
+@click.option(
+    "--config-file", type=click.Path(exists=False), default="deebot.conf.json"
+)
 def cli(ctx, config_file):
     logging.basicConfig()
-    logging.getLogger('deebot_t8').setLevel(logging.DEBUG)
+    logging.getLogger("deebot_t8").setLevel(logging.DEBUG)
 
     config = load_config(config_file)
 
@@ -51,11 +57,13 @@ def cli(ctx, config_file):
         portal_client = PortalClient(
             device_id=config.device_id,
             country=config.country,
-            continent=config.continent)
+            continent=config.continent,
+        )
         auth_client = DeebotAuthClient(
             portal_client=portal_client,
             device_id=config.device_id,
-            country=config.country)
+            country=config.country,
+        )
         authenticator = Authenticator(
             auth_client=auth_client,
             country=config.country,
@@ -63,11 +71,9 @@ def cli(ctx, config_file):
             account_id=config.username,
             password_hash=config.password_hash,
             cached_credentials=config.credentials,
-            on_credentials_changed=on_credentials_changed
+            on_credentials_changed=on_credentials_changed,
         )
-        api_client = ApiClient(
-            portal_client=portal_client,
-            authenticator=authenticator)
+        api_client = ApiClient(portal_client=portal_client, authenticator=authenticator)
         subscription_client = SubscriptionClient(
             authenticator=authenticator,
             continent=config.continent,
@@ -89,11 +95,11 @@ def renew_access_tokens_impl(auth: DeebotAuthClient, config: Config):
 
 @cli.command()
 @click.pass_obj
-@click.option('--username', type=str, required=True)
-@click.option('--password', type=str, required=True)
-@click.option('--country', type=str, required=True)
-@click.option('--continent', type=str, required=True)
-@click.option('--regen-device', type=bool)
+@click.option("--username", type=str, required=True)
+@click.option("--password", type=str, required=True)
+@click.option("--country", type=str, required=True)
+@click.option("--continent", type=str, required=True)
+@click.option("--regen-device", type=bool)
 def login(obj: TypedObj, username, password, country, continent, regen_device):
     # TODO(NW): Infer continent from country
 
@@ -115,32 +121,36 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
     portal_client = PortalClient(
         device_id=obj.config.device_id,
         country=obj.config.country,
-        continent=obj.config.continent)
+        continent=obj.config.continent,
+    )
     auth_client = DeebotAuthClient(
         portal_client=portal_client,
         device_id=obj.config.device_id,
-        country=obj.config.country)
+        country=obj.config.country,
+    )
 
     write_config(obj.config_path, obj.config)
-    obj.config.credentials = renew_access_tokens_impl(auth_client,
-                                                      obj.config)
+    obj.config.credentials = renew_access_tokens_impl(auth_client, obj.config)
     write_config(obj.config_path, obj.config)
-    click.echo("Authenticated with user {}, token expires at {}".format(
-        obj.config.credentials.user_id,
-        obj.config.credentials.expires_at,
-    ))
+    click.echo(
+        "Authenticated with user {}, token expires at {}".format(
+            obj.config.credentials.user_id,
+            obj.config.credentials.expires_at,
+        )
+    )
 
 
 @cli.command()
 @click.pass_obj
 def renew_access_token(obj: TypedObj):
-    obj.config.credentials = renew_access_tokens_impl(obj.auth_client,
-                                                      obj.config)
+    obj.config.credentials = renew_access_tokens_impl(obj.auth_client, obj.config)
     write_config(obj.config_path, obj.config)
-    click.echo("Renewed with user {}, token expires at {}".format(
-        obj.config.credentials.user_id,
-        obj.config.credentials.expires_at,
-    ))
+    click.echo(
+        "Renewed with user {}, token expires at {}".format(
+            obj.config.credentials.user_id,
+            obj.config.credentials.expires_at,
+        )
+    )
 
 
 @cli.command()
@@ -148,24 +158,26 @@ def renew_access_token(obj: TypedObj):
 def list_devices(obj: TypedObj):
     devices = obj.api_client.get_devices_list()
     table_data = [
-        ['device id', 'name', 'product category', 'model', 'status'],
+        ["device id", "name", "product category", "model", "status"],
     ]
     for device in devices:
-        table_data.append([
-            device.id,
-            device.name,
-            device.product_category,
-            device.model_name,
-            # status 0 seems to indicate offline?
-            # status 1 online
-            device.status
-        ])
+        table_data.append(
+            [
+                device.id,
+                device.name,
+                device.product_category,
+                device.model_name,
+                # status 0 seems to indicate offline?
+                # status 1 online
+                device.status,
+            ]
+        )
     print(AsciiTable(table_data).table)
 
 
 @cli.group()
 @click.pass_obj
-@click.argument('device-name', type=str, required=False)
+@click.argument("device-name", type=str, required=False)
 def device(obj: TypedObj, device_name):
     selected_device = None
     devices = obj.api_client.get_devices_list()
@@ -175,13 +187,14 @@ def device(obj: TypedObj, device_name):
             break
     else:
         raise click.UsageError(
-            'Device with specified name ({}) could not be found.'.format(
-                device_name))
+            "Device with specified name ({}) could not be found.".format(device_name)
+        )
 
     obj.entity = DeebotEntity(
         api_client=obj.api_client,
         subs_client=obj.subscription_client,
-        device=selected_device)
+        device=selected_device,
+    )
 
 
 @device.command()
@@ -192,7 +205,7 @@ def subscribe(obj: TypedObj):
 
     def on_state_change(state: VacuumState, attribute: str):
         click.clear()
-        table_data = [['Attribute', 'Value']]
+        table_data = [["Attribute", "Value"]]
         for attr, value in asdict(state).items():
             if isinstance(value, list):
                 for entry in value:
@@ -220,14 +233,14 @@ def clean(obj: TypedObj):
 
 @device.command()
 @click.pass_obj
-@click.argument('areas', type=int, nargs=-1, required=True)
+@click.argument("areas", type=int, nargs=-1, required=True)
 def clean_areas(obj: TypedObj, areas):
     obj.entity.clean_areas(areas)
 
 
 @device.command()
 @click.pass_obj
-@click.argument('custom', type=str)
+@click.argument("custom", type=str)
 def clean_custom(obj: TypedObj, custom):
     obj.entity.clean_custom(custom)
 
@@ -264,14 +277,14 @@ def play_sound(obj: TypedObj):
 
 @device.command()
 @click.pass_obj
-@click.argument('enable', type=bool)
+@click.argument("enable", type=bool)
 def set_true_detect(obj: TypedObj, enable: bool):
     obj.entity.set_true_detect(enable)
 
 
 @device.command()
 @click.pass_obj
-@click.argument('enable', type=bool)
+@click.argument("enable", type=bool)
 def set_clean_preference(obj: TypedObj, enable: bool):
     obj.entity.set_clean_preference(enable)
 
@@ -294,5 +307,5 @@ def send_command(obj: TypedObj):
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

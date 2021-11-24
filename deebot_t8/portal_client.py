@@ -15,28 +15,22 @@ class PortalClient:
         self._country = country
         self._continent = continent
 
-    def _get_portal_url(
-            self,
-            country: str,
-            continent: str,
-            path: str
-    ):
-        subdomain = f"portal-{continent}" if country != 'cn' else "portal"
+    def _get_portal_url(self, country: str, continent: str, path: str):
+        subdomain = f"portal-{continent}" if country != "cn" else "portal"
         return urljoin(f"https://{subdomain}.ecouser.net/api/", path)
 
-    def do_post(self, path, params, *, credentials: Credentials = None,
-                query=None):
+    def do_post(self, path, params, *, credentials: Credentials = None, query=None):
         url = self._get_portal_url(self._country, self._continent, path=path)
         if credentials is not None:
             params = {
                 **params,
-                'auth': {
+                "auth": {
                     "with": "users",
                     "userid": credentials.user_id,
                     "realm": REALM,
                     "token": credentials.access_token,
                     "resource": self._device_id[0:8],
-                }
+                },
             }
 
         resp = requests.post(url, json=params, params=query)

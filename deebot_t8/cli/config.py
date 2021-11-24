@@ -23,42 +23,42 @@ class Config:
         creds = None
         if self.credentials is not None:
             creds = {
-                'userId': self.credentials.user_id,
-                'accessToken': self.credentials.access_token,
-                'expiresAt': self.credentials.expires_at,
+                "userId": self.credentials.user_id,
+                "accessToken": self.credentials.access_token,
+                "expiresAt": self.credentials.expires_at,
             }
         return {
-            'username': self.username,
-            'passwordHash': self.password_hash,
-            'country': self.country,
-            'continent': self.continent,
-            'deviceId': self.device_id,
-            'credentials': creds,
+            "username": self.username,
+            "passwordHash": self.password_hash,
+            "country": self.country,
+            "continent": self.continent,
+            "deviceId": self.device_id,
+            "credentials": creds,
         }
 
     @classmethod
     def deserialize(cls, o):
         creds = None
-        if o['credentials'] is not None:
+        if o["credentials"] is not None:
             creds = Credentials(
-                user_id=o['credentials']['userId'],
-                access_token=o['credentials']['accessToken'],
-                expires_at=o['credentials']['expiresAt'],
+                user_id=o["credentials"]["userId"],
+                access_token=o["credentials"]["accessToken"],
+                expires_at=o["credentials"]["expiresAt"],
             )
 
         return Config(
-            username=o['username'],
-            password_hash=o['passwordHash'],
-            country=o['country'],
-            continent=o['continent'],
-            device_id=o['deviceId'],
+            username=o["username"],
+            password_hash=o["passwordHash"],
+            country=o["country"],
+            continent=o["continent"],
+            device_id=o["deviceId"],
             credentials=creds,
         )
 
 
 def load_config(file: str) -> Optional[Config]:
     if os.path.exists(file):
-        with open(file, 'r') as fh:
+        with open(file, "r") as fh:
             try:
                 raw_config = json.load(fh)
                 return Config.deserialize(raw_config)
@@ -70,5 +70,5 @@ def load_config(file: str) -> Optional[Config]:
 
 
 def write_config(file: str, config: Config):
-    with open(file, 'w') as fh:
+    with open(file, "w") as fh:
         json.dump(config.serialize(), fh, indent=4)

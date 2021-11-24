@@ -5,14 +5,15 @@ import ssl
 import threading
 from typing import Any, Tuple, List, Callable, Dict, Set
 
-from paho.mqtt.client import Client  as MQTTClient, MQTT_ERR_SUCCESS
+from paho.mqtt.client import Client as MQTTClient, MQTT_ERR_SUCCESS
 
 from .api_client import DeviceInfo
 from .auth_client import Authenticator
 from .urls import REALM
 
 TOPIC_RE = re.compile(
-    'iot/atr/(?P<command>[^/]+)/(?P<device_id>[^/]+)/(?P<device_cls>[^/]+)/(?P<device_resource>[^/]+)/j')
+    "iot/atr/(?P<command>[^/]+)/(?P<device_id>[^/]+)/(?P<device_cls>[^/]+)/(?P<device_resource>[^/]+)/j"
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,12 +21,7 @@ HandlerT = Callable[[str, Dict[str, Any]], None]
 
 
 class SubscriptionClient:
-    def __init__(
-            self,
-            authenticator: Authenticator,
-            continent: str,
-            device_id: str
-    ):
+    def __init__(self, authenticator: Authenticator, continent: str, device_id: str):
         self._authenticator = authenticator
         self._continent = continent
         self._device_id = device_id
@@ -39,7 +35,9 @@ class SubscriptionClient:
         LOGGER.debug("MQTT Connecting...")
 
         credentials = self._authenticator.authenticate()
-        client_id = f"{credentials.user_id}@{REALM.split('.')[0]}/{self._device_id[0:8]}"
+        client_id = (
+            f"{credentials.user_id}@{REALM.split('.')[0]}/{self._device_id[0:8]}"
+        )
         username = f"{credentials.user_id}@{REALM}"
         password = credentials.access_token
         url = self._get_server_url()
@@ -80,13 +78,13 @@ class SubscriptionClient:
         LOGGER.debug("mqtt: message received: %s", msg.topic)
 
         if m := TOPIC_RE.match(msg.topic):
-            command = m.group('command')
-            device_id = m.group('device_id')
+            command = m.group("command")
+            device_id = m.group("device_id")
 
             for (device, handler) in self._subscribers:
                 if device.id == device_id:
                     data = json.loads(msg.payload)
-                    handler(command, data['body'])
+                    handler(command, data["body"])
 
     def _get_server_url(self):
         """
@@ -118,12 +116,19 @@ class SubscriptionClient:
                 self._subscribers.remove(entry)
 
             if len(self._subscribers) == 0:
-                LOGGER.info(
-                    "No remaining subscribers, disconnecting from MQTT")
+                LOGGER.info("No remaining subscribers, disconnecting from MQTT")
                 self._client.disconnect()
                 self._client = None
 
     def _subscribe_topic(self, device: DeviceInfo):
-        topic = 'iot/atr/+/' + device.id + '/' + device.dev_class + '/' + device.resource + '/+'
+        topic = (
+            "iot/atr/+/"
+            + device.id
+            + "/"
+            + device.dev_class
+            + "/"
+            + device.resource
+            + "/+"
+        )
         LOGGER.debug("Subscribing to topic: {}".format(topic))
         self._client.subscribe(topic, qos=0)

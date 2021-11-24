@@ -12,6 +12,6 @@ __all__ = [
     Credentials,
     DeebotEntity,
     PortalClient,
-    SubscriptionClient
+    SubscriptionClient,
 ]
-__version__ = '0.0.0-dev'
+__version__ = "0.0.0-dev"
