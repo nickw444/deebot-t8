@@ -14,3 +14,4 @@ __all__ = [
     PortalClient,
     SubscriptionClient
 ]
+__version__ = '0.0.0-dev'
