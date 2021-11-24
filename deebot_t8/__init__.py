@@ -6,12 +6,12 @@ from .portal_client import PortalClient
 from .subscription_client import SubscriptionClient
 
 __all__ = [
-    ApiClient,
-    DeviceInfo,
-    DeebotAuthClient,
-    Credentials,
-    DeebotEntity,
-    PortalClient,
-    SubscriptionClient
+    "ApiClient",
+    "DeviceInfo",
+    "DeebotAuthClient",
+    "Credentials",
+    "DeebotEntity",
+    "PortalClient",
+    "SubscriptionClient",
 ]
-__version__ = '0.0.0-dev'
+__version__ = "0.0.0-dev"

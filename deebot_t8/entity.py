@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import logging
 import threading
@@ -60,32 +61,32 @@ class VacuumState:
         SPOT_AREA = 2
         CUSTOM_AREA = 3
 
-    is_online: bool = None
-    firmware_version: str = None
-    hardware_version: str = None
+    is_online: bool | None = None
+    firmware_version: str | None = None
+    hardware_version: str | None = None
 
-    state: RobotState = None
-    clean_type: CleanType = None
-    clean_stats: CleanStats = None
+    state: RobotState | None = None
+    clean_type: CleanType | None = None
+    clean_stats: CleanStats | None = None
 
-    battery_level: int = None
-    is_charging: bool = None
+    battery_level: int | None = None
+    is_charging: bool | None = None
 
-    mop_attached: bool = None
-    water_level: WaterFlow = None
+    mop_attached: bool | None = None
+    water_level: WaterFlow | None = None
 
-    vacuum_speed: Speed = None
-    clean_count: int = None
+    vacuum_speed: Speed | None = None
+    clean_count: int | None = None
 
-    cleaning_preference_enabled: bool = None
-    true_detect_enabled: bool = None
-    auto_boost_suction_enabled: bool = None
-    auto_empty_enabled: bool = None
+    cleaning_preference_enabled: bool | None = None
+    true_detect_enabled: bool | None = None
+    auto_boost_suction_enabled: bool | None = None
+    auto_empty_enabled: bool | None = None
 
-    lifespan: List[ComponentLifeSpan] = None
-    total_stats: TotalStats = None
+    lifespan: List[ComponentLifeSpan] | None = None
+    total_stats: TotalStats | None = None
 
-    _on_change = None
+    _on_change: Callable[[VacuumState, str], None] | None = None
 
     def __setattr__(self, key, value):
         super(VacuumState, self).__setattr__(key, value)
@@ -97,7 +98,9 @@ class VacuumState:
 
 
 class DeebotEntity:
-    def __init__(self, api_client: ApiClient, subs_client: SubscriptionClient, device: DeviceInfo):
+    def __init__(
+        self, api_client: ApiClient, subs_client: SubscriptionClient, device: DeviceInfo
+    ):
         self._api_client = api_client
         self._subs_client = subs_client
         self._device = device
@@ -113,33 +116,34 @@ class DeebotEntity:
 
     def force_refresh(self):
         requests = [
-            ('getInfo', [
-                "getCleanInfo_V2",
-                "getWaterInfo",
-                "getChargeState",
-                "getBattery",
-                "getStats",
-                "getError",
-            ]),
+            (
+                "getInfo",
+                [
+                    "getCleanInfo_V2",
+                    "getWaterInfo",
+                    "getChargeState",
+                    "getBattery",
+                    "getStats",
+                    "getError",
+                ],
+            ),
             # Make an additional getInfo call to avoid response payload size
             # restriction. It appears larger response payloads are returned via
             # MQTT across multiple messages. This saves additional
             # implementation complexity to support that.
-            ('getInfo', [
-                "getTotalStats",
-                "getSpeed",
-                "getCleanCount",
-                "getTrueDetect",
-                'getCleanPreference',
-                "getAutoEmpty",
-                "getCarpertPressure", # <- Yes there is actually a typo in the api 🤷‍
-            ]),
-            ('getLifeSpan', [
-                "sideBrush",
-                "brush",
-                "heap",
-                "unitCare"
-            ]),
+            (
+                "getInfo",
+                [
+                    "getTotalStats",
+                    "getSpeed",
+                    "getCleanCount",
+                    "getTrueDetect",
+                    "getCleanPreference",
+                    "getAutoEmpty",
+                    "getCarpertPressure",  # <- Yes there is actually a typo in the api 🤷‍
+                ],
+            ),
+            ("getLifeSpan", ["sideBrush", "brush", "heap", "unitCare"]),
             # The following requests are unused as they have an unknown purpose:
             # ("getBlock", None),
             # ("getBreakPoint", None),
@@ -147,57 +151,55 @@ class DeebotEntity:
 
         for (command, params) in requests:
             resp = self.exc_command(command, params)
-            self.handle_command(command, resp['body'], resp['header'])
+            self.handle_command(command, resp["body"], resp["header"])
 
     def handle_mqtt_message(self, command, body, log=True):
         if log:
             LOGGER.debug("mq: {} {}".format(command, body))
 
-        data = body['data']
+        data = body["data"]
         if command == "onBattery":
-            self.state.battery_level = data['value']
-        elif command == 'onChargeState':
-            self.state.is_charging = bool(data['isCharging'])
-        elif command == 'onCleanCount':
-            self.state.clean_count = data['count']
-        elif command == 'onCleanInfo_V2':
-            if data['state'] == 'clean':
-                clean_state = data['cleanState']
-                motion_state = clean_state['motionState']
-                clean_type = clean_state['content']['type']
+            self.state.battery_level = data["value"]
+        elif command == "onChargeState":
+            self.state.is_charging = bool(data["isCharging"])
+        elif command == "onCleanCount":
+            self.state.clean_count = data["count"]
+        elif command == "onCleanInfo_V2":
+            if data["state"] == "clean":
+                clean_state = data["cleanState"]
+                motion_state = clean_state["motionState"]
+                clean_type = clean_state["content"]["type"]
 
-                if motion_state == 'working':
+                if motion_state == "working":
                     self.state.state = VacuumState.RobotState.CLEANING
-                elif motion_state == 'pause':
+                elif motion_state == "pause":
                     self.state.state = VacuumState.RobotState.PAUSED
                 else:
-                    LOGGER.warning(
-                        "Unhandled motion state: {}".format(motion_state))
+                    LOGGER.warning("Unhandled motion state: {}".format(motion_state))
 
-                if clean_type == 'auto':
+                if clean_type == "auto":
                     self.state.clean_type = VacuumState.CleanType.AUTO
-                elif clean_type == 'spotArea':
+                elif clean_type == "spotArea":
                     self.state.clean_type = VacuumState.CleanType.SPOT_AREA
-                elif clean_type == 'customArea':
+                elif clean_type == "customArea":
                     self.state.clean_type = VacuumState.CleanType.CUSTOM_AREA
                 else:
-                    LOGGER.warning(
-                        "Unhandled clean type: {}".format(clean_type))
+                    LOGGER.warning("Unhandled clean type: {}".format(clean_type))
 
-            elif data['state'] == 'idle':
+            elif data["state"] == "idle":
                 self.state.state = VacuumState.RobotState.IDLE
                 self.state.clean_type = None
-            elif data['state'] == 'goCharging':
+            elif data["state"] == "goCharging":
                 self.state.state = VacuumState.RobotState.RETURNING
                 self.state.clean_type = None
-        elif command == 'onCleanPreference':
-            self.state.cleaning_preference_enabled = bool(data['enable'])
-        elif command == 'onFwBuryPoint':
-            cmd_payload = json.loads(data['content'])
-            cmd_rn = cmd_payload['rn']
+        elif command == "onCleanPreference":
+            self.state.cleaning_preference_enabled = bool(data["enable"])
+        elif command == "onFwBuryPoint":
+            cmd_payload = json.loads(data["content"])
+            cmd_rn = cmd_payload["rn"]
 
-            if cmd_rn == 'bd_setting':
-                cmd_data_raw = cmd_payload['d']['body']['data']['d_val']
+            if cmd_rn == "bd_setting":
+                cmd_data_raw = cmd_payload["d"]["body"]["data"]["d_val"]
                 cmd_data = json.loads(cmd_data_raw)
                 # Set normalized water level, water levels reported via
                 # onFwBuryPoint::bd_setting are indexed from 0 through 3
@@ -207,51 +209,49 @@ class DeebotEntity:
                     2: VacuumState.WaterFlow.HIGH,
                     3: VacuumState.WaterFlow.ULTRA_HIGH,
                 }
-                self.state.water_level = water_flow_map[
-                    cmd_data['waterAmount']]
-                self.state.auto_boost_suction_enabled = bool(
-                    cmd_data['isPressurized'])
+                self.state.water_level = water_flow_map[cmd_data["waterAmount"]]
+                self.state.auto_boost_suction_enabled = bool(cmd_data["isPressurized"])
             else:
                 LOGGER.debug(
-                    "Unhandled onFwBuryPoint message: {} {}".format(cmd_rn,
-                                                                    cmd_payload))
-        elif command == 'onSpeed':
+                    "Unhandled onFwBuryPoint message: {} {}".format(cmd_rn, cmd_payload)
+                )
+        elif command == "onSpeed":
             speed_map = {
                 1000: VacuumState.Speed.QUIET,
                 0: VacuumState.Speed.STANDARD,
                 1: VacuumState.Speed.MAX,
                 2: VacuumState.Speed.MAX_PLUS,
             }
-            self.state.vacuum_speed = speed_map[data['speed']]
-        elif command == 'onStats':
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877148', 'type': 'customArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
-            # mq: onStats {'data': {'area': 0, 'time': 61, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}}
+            self.state.vacuum_speed = speed_map[data["speed"]]
+        elif command == "onStats":
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877148', 'type': 'customArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 0, 'cid': '111', 'start': '1624877619', 'type': 'auto', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
+            # mq: onStats {'data': {'area': 0, 'time': 61, 'cid': '111', 'start': '1624877304', 'type': 'spotArea', 'enablePowerMop': 0, 'powerMopType': 1, 'aiopen': 1, 'aitypes': [], 'avoidCount': 0}} # noqa: E501
             # TODO(NW): Handle mopping info in this message (enablePowerMop, powerMopType)
             self.state.clean_stats = CleanStats(
-                area=data['area'],
-                time=data['time'],
-                avoid_count=data['avoidCount'],
-                start_time=data['start'],
+                area=data["area"],
+                time=data["time"],
+                avoid_count=data["avoidCount"],
+                start_time=data["start"],
             )
 
             # TODO(NW): Determine whether clean type should be inferred from this?
             #             - does it introduce a race?
-            typ = data['type']
-            if typ == 'auto':
+            typ = data["type"]
+            if typ == "auto":
                 self.state.clean_type = VacuumState.CleanType.AUTO
-            elif typ == 'spotArea':
+            elif typ == "spotArea":
                 self.state.clean_type = VacuumState.CleanType.SPOT_AREA
-            elif typ == 'customArea':
+            elif typ == "customArea":
                 self.state.clean_type = VacuumState.CleanType.CUSTOM_AREA
             else:
                 LOGGER.warning("Unknown clean type: {}".format(typ))
-        elif command == 'onTrueDetect':
-            self.state.true_detect_enabled = bool(data['enable'])
-        elif command == 'onWaterInfo':
-            self.state.mop_attached = bool(data['enable'])
+        elif command == "onTrueDetect":
+            self.state.true_detect_enabled = bool(data["enable"])
+        elif command == "onWaterInfo":
+            self.state.mop_attached = bool(data["enable"])
             # Set normalized water level, water levels reported via onWaterInfo
             # are indexed from 1 through 4
             water_flow_map = {
@@ -260,48 +260,50 @@ class DeebotEntity:
                 3: VacuumState.WaterFlow.HIGH,
                 4: VacuumState.WaterFlow.ULTRA_HIGH,
             }
-            self.state.water_level = water_flow_map[data['amount']]
-        elif command == 'reportStats':
-            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}}
-            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 2, 'startReason': 1, 'type': 'spotArea', 'mapCount': 9, 'area': 0, 'start': '1624877304', 'time': 61, 'content': '1', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}}
-            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'customArea'}}
-            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 1, 'startReason': 1, 'type': 'customArea', 'mapCount': 9, 'area': 0, 'start': '1624877148', 'time': 0, 'content': '-2382.000000,-563.000000,-1998.000000,-1323.000000', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}}
-            # mq: reportStats {'data': {'cid': '2147037274', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}}
-            # mq: reportStats {'data': {'cid': '67289670', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 2, 'startReason': 1, 'type': 'auto'}}
+            self.state.water_level = water_flow_map[data["amount"]]
+        elif command == "reportStats":
+            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '1117230632', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 2, 'startReason': 1, 'type': 'spotArea', 'mapCount': 9, 'area': 0, 'start': '1624877304', 'time': 61, 'content': '1', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'customArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2132509283', 'stop': 1, 'enablePowerMop': 0, 'powerMopType': 1, 'stopReason': 1, 'startReason': 1, 'type': 'customArea', 'mapCount': 9, 'area': 0, 'start': '1624877148', 'time': 0, 'content': '-2382.000000,-563.000000,-1998.000000,-1323.000000', 'aiopen': 1, 'aitypes': [], 'aiavoid': 0}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '2147037274', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 1, 'startReason': 1, 'type': 'spotArea'}} # noqa: E501
+            # mq: reportStats {'data': {'cid': '67289670', 'stop': 0, 'enablePowerMop': 0, 'powerMopType': 2, 'stopReason': 2, 'startReason': 1, 'type': 'auto'}} # noqa: E501
             pass
-        elif command == 'onBreakPointStatus':
+        elif command == "onBreakPointStatus":
             pass
-        elif command == 'onCachedMapInfo':
+        elif command == "onCachedMapInfo":
             pass
         elif command in (
-                'reportMinorMap', 'reportPos', 'reportMapTrace',
-                'reportMapSubSet'):
+            "reportMinorMap",
+            "reportPos",
+            "reportMapTrace",
+            "reportMapSubSet",
+        ):
             pass
-        elif command == 'onError':
+        elif command == "onError":
             pass
-        elif command == 'onEvt':
+        elif command == "onEvt":
             pass
-        elif command == 'onMajorMap':
+        elif command == "onMajorMap":
             pass
-        elif command == 'onMapSet':
+        elif command == "onMapSet":
             pass
-        elif command == 'onMapState':
+        elif command == "onMapState":
             pass
-        elif command == 'onMapTrace':
+        elif command == "onMapTrace":
             pass
-        elif command == 'onMinorMap':
+        elif command == "onMinorMap":
             pass
-        elif command == 'onPos':
+        elif command == "onPos":
             pass
-        elif command == 'onRelocationState':
+        elif command == "onRelocationState":
             pass
-        elif command == 'onRosNodeReady':
+        elif command == "onRosNodeReady":
             pass
-        elif command == 'onSched_V2':
+        elif command == "onSched_V2":
             pass
         else:
-            LOGGER.warning(
-                "Unhandled mqtt command: {} {}".format(command, data))
+            LOGGER.warning("Unhandled mqtt command: {} {}".format(command, data))
 
     def exc_command(self, command, data=None):
         try:
@@ -317,57 +319,56 @@ class DeebotEntity:
         return rv
 
     def handle_command(self, command: str, resp, header):
-        if header is not None and 'fwVer' in header:
-            self.state.firmware_version = header['fwVer']
-        if header is not None and 'hwVer' in header:
-            self.state.hardware_version = header['hwVer']
+        if header is not None and "fwVer" in header:
+            self.state.firmware_version = header["fwVer"]
+        if header is not None and "hwVer" in header:
+            self.state.hardware_version = header["hwVer"]
 
-        if 'data' not in resp:
+        if "data" not in resp:
             LOGGER.warning("No data provided for command: %s", command)
             return
 
-        data = resp['data']
+        data = resp["data"]
         LOGGER.debug("http: {} {}".format(command, data))
 
         if command in (
-                'getBattery',
-                'getChargeState',
-                'getCleanCount',
-                'getCleanInfo_V2',
-                'getCleanPreference',
-                'getError',
-                'getSpeed',
-                'getStats',
-                'getTrueDetect',
-                'getWaterInfo',
+            "getBattery",
+            "getChargeState",
+            "getCleanCount",
+            "getCleanInfo_V2",
+            "getCleanPreference",
+            "getError",
+            "getSpeed",
+            "getStats",
+            "getTrueDetect",
+            "getWaterInfo",
         ):
             # Handle overlapping commands via MQTT routines
-            mq_command = 'on' + command.lstrip('get')
+            mq_command = "on" + command.lstrip("get")
             self.handle_mqtt_message(mq_command, resp, log=False)
 
-        elif command == 'getInfo':
+        elif command == "getInfo":
             for key, value in data.items():
                 self.handle_command(key, value, None)
-        elif command == 'getTotalStats':
+        elif command == "getTotalStats":
             self.state.total_stats = TotalStats(
-                area=data['area'],
-                time=data['time'],
-                count=data['count'],
+                area=data["area"],
+                time=data["time"],
+                count=data["count"],
             )
-        elif command == 'getLifeSpan':
+        elif command == "getLifeSpan":
             self.state.lifespan = [
-                ComponentLifeSpan(component=x['type'], left=x['left'],
-                                  total=x['total']) for x in data
+                ComponentLifeSpan(component=x["type"], left=x["left"], total=x["total"])
+                for x in data
             ]
-        elif command == 'getCarpertPressure':
-            self.state.auto_boost_suction_enabled = bool(data['enable'])
-        elif command == 'getAutoEmpty':
-            self.state.auto_empty_enabled = bool(data['enable'])
+        elif command == "getCarpertPressure":
+            self.state.auto_boost_suction_enabled = bool(data["enable"])
+        elif command == "getAutoEmpty":
+            self.state.auto_empty_enabled = bool(data["enable"])
         else:
-            LOGGER.warning(
-                "Unhandled http command: {} {}".format(command, data))
+            LOGGER.warning("Unhandled http command: {} {}".format(command, data))
 
-    def _handle_state_change(self, state: VacuumState, attribute: str):
+    def _handle_state_change(self, state: VacuumState, attribute: str) -> None:
         for subscriber in self._subscribers:
             subscriber(state, attribute)
 
@@ -377,7 +378,7 @@ class DeebotEntity:
             while self._should_poll:
                 try:
                     self.force_refresh()
-                except Exception as e:
+                except Exception:
                     LOGGER.exception("Error whilst polling, robot might be offline?")
                 time.sleep(60 * 2)
 
@@ -396,8 +397,7 @@ class DeebotEntity:
             self._subscribers.add(handler)
             if len_before == 0:
                 # No subscribers! Subscribe and begin polling!
-                self._subs_client.subscribe(
-                    self._device, self.handle_mqtt_message)
+                self._subs_client.subscribe(self._device, self.handle_mqtt_message)
                 self._start_polling()
 
     def unsubscribe(self, handler):
@@ -406,36 +406,50 @@ class DeebotEntity:
             if len(self._subscribers) == 0:
                 # No subscribers left! Stop polling and unsubscribe
                 self._stop_polling()
-                self._subs_client.unsubscribe(
-                    self._device, self.handle_mqtt_message)
+                self._subs_client.unsubscribe(self._device, self.handle_mqtt_message)
 
     def set_true_detect(self, enabled: bool):
-        self.exc_command('setTrueDetect', {
-            'enable': int(enabled),
-        })
+        self.exc_command(
+            "setTrueDetect",
+            {
+                "enable": int(enabled),
+            },
+        )
 
     def set_clean_preference(self, enabled: bool):
-        self.exc_command('setCleanPreference', {
-            'enable': int(enabled),
-        })
+        self.exc_command(
+            "setCleanPreference",
+            {
+                "enable": int(enabled),
+            },
+        )
 
     def set_clean_count(self, count: bool):
-        self.exc_command('setCleanCount', {
-            'count': int(count),
-        })
+        self.exc_command(
+            "setCleanCount",
+            {
+                "count": int(count),
+            },
+        )
 
     def set_auto_empty(self, enabled: bool):
-        self.exc_command('setAutoEmpty', {
-            'enable': int(enabled),
-        })
+        self.exc_command(
+            "setAutoEmpty",
+            {
+                "enable": int(enabled),
+            },
+        )
         # Optimistically update state, since no MQTT confirmation is received
         # for this setter.
         self.state.auto_empty_enabled = enabled
 
     def set_auto_boost_suction(self, enabled: bool):
-        self.exc_command('setCarpertPressure', {
-            'enable': int(enabled),
-        })
+        self.exc_command(
+            "setCarpertPressure",
+            {
+                "enable": int(enabled),
+            },
+        )
 
     def set_water_level(self, level: VacuumState.WaterFlow):
         # TODO(NW): Colocate with deserialization and definition.
@@ -445,9 +459,12 @@ class DeebotEntity:
             VacuumState.WaterFlow.HIGH: 3,
             VacuumState.WaterFlow.ULTRA_HIGH: 4,
         }
-        self.exc_command('setWaterInfo', {
-            'amount': water_level_map[level],
-        })
+        self.exc_command(
+            "setWaterInfo",
+            {
+                "amount": water_level_map[level],
+            },
+        )
 
     def set_vacuum_speed(self, speed: VacuumState.Speed):
         # TODO(NW): Colocate with deserialization and definition.
@@ -457,76 +474,81 @@ class DeebotEntity:
             VacuumState.Speed.MAX: 1,
             VacuumState.Speed.MAX_PLUS: 2,
         }
-        self.exc_command('setSpeed', {
-            'speed': speed_map[speed],
-        })
+        self.exc_command(
+            "setSpeed",
+            {
+                "speed": speed_map[speed],
+            },
+        )
 
     def clean(self):
-        self.exc_command('clean_V2', {
-            "act": "start",
-            "content": {
-                "count": "",
-                "donotClean": "",
-                "type": "auto",
-                "value": ""
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "start",
+                "content": {"count": "", "donotClean": "", "type": "auto", "value": ""},
+                "mode": "",
+                "router": "plan",
             },
-            "mode": "",
-            "router": "plan"
-        })
+        )
 
     def clean_areas(self, areas: List[int]):
         # TODO(NW): Use dynamic "count" for clean count.
-        self.exc_command('clean_V2', {
-            'act': 'start',
-            'content': {
-                'count': '',
-                'donotClean': '',
-                'type': 'spotArea',
-                'value': ','.join(str(x) for x in areas),
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "start",
+                "content": {
+                    "count": "",
+                    "donotClean": "",
+                    "type": "spotArea",
+                    "value": ",".join(str(x) for x in areas),
+                },
+                "mode": "",
+                "router": "plan",
             },
-            'mode': '',
-            'router': 'plan',
-        })
+        )
 
     def clean_custom(self, custom_area: str):
         # TODO(NW): Use dynamic "count" for clean count.
-        self.exc_command('clean_V2', {
-            'act': 'start',
-            'content': {
-                'count': '',
-                'donotClean': '',
-                'type': 'customArea',
-                'value': custom_area,
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "start",
+                "content": {
+                    "count": "",
+                    "donotClean": "",
+                    "type": "customArea",
+                    "value": custom_area,
+                },
+                "mode": "",
+                "router": "plan",
             },
-            'mode': '',
-            'router': 'plan',
-        })
+        )
 
     def stop(self):
         # TODO(NW): See if the payload can be simplified (ala pause/resume)
-        self.exc_command('clean_V2', {
-            'act': 'stop',
-            'content': {
-                'count': '',
-                'donotClean': '',
-                'type': '',
-                'value': ''
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "stop",
+                "content": {"count": "", "donotClean": "", "type": "", "value": ""},
+                "mode": "",
+                "router": "plan",
             },
-            'mode': '',
-            'router': 'plan'
-        })
+        )
 
     def pause(self):
-        self.exc_command('clean_V2', {'act': 'pause'})
+        self.exc_command("clean_V2", {"act": "pause"})
 
     def resume(self):
-        self.exc_command('clean_V2', {'act': 'resume'})
+        self.exc_command("clean_V2", {"act": "resume"})
 
     def return_to_charge(self):
-        self.exc_command('charge', {'act': 'go'})
+        self.exc_command("charge", {"act": "go"})
 
     def relocate(self):
-        self.exc_command('setRelocationState', {'mode': 'manu'})
+        self.exc_command("setRelocationState", {"mode": "manu"})
 
     def play_sound(self, sound_id=30):
-        self.exc_command('playSound', {"count": 1, "sid": sound_id})
+        self.exc_command("playSound", {"count": 1, "sid": sound_id})

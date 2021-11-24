@@ -23,7 +23,7 @@ jobs:
       - name: 'Check Formatting (black)'
         run: black .
       - name: 'Check Types'
-        run: mypy --strict deebot_t8
+        run: mypy deebot_t8
   build:
     name: "Build"
     runs-on: ubuntu-latest
