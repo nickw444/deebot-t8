@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import logging
 import threading
@@ -60,32 +61,32 @@ class VacuumState:
         SPOT_AREA = 2
         CUSTOM_AREA = 3
 
-    is_online: bool = None
-    firmware_version: str = None
-    hardware_version: str = None
+    is_online: bool | None = None
+    firmware_version: str | None = None
+    hardware_version: str | None = None
 
-    state: RobotState = None
-    clean_type: CleanType = None
-    clean_stats: CleanStats = None
+    state: RobotState | None = None
+    clean_type: CleanType | None = None
+    clean_stats: CleanStats | None = None
 
-    battery_level: int = None
-    is_charging: bool = None
+    battery_level: int | None = None
+    is_charging: bool | None = None
 
-    mop_attached: bool = None
-    water_level: WaterFlow = None
+    mop_attached: bool | None = None
+    water_level: WaterFlow | None = None
 
-    vacuum_speed: Speed = None
-    clean_count: int = None
+    vacuum_speed: Speed | None = None
+    clean_count: int | None = None
 
-    cleaning_preference_enabled: bool = None
-    true_detect_enabled: bool = None
-    auto_boost_suction_enabled: bool = None
-    auto_empty_enabled: bool = None
+    cleaning_preference_enabled: bool | None = None
+    true_detect_enabled: bool | None = None
+    auto_boost_suction_enabled: bool | None = None
+    auto_empty_enabled: bool | None = None
 
-    lifespan: List[ComponentLifeSpan] = None
-    total_stats: TotalStats = None
+    lifespan: List[ComponentLifeSpan] | None = None
+    total_stats: TotalStats | None = None
 
-    _on_change = None
+    _on_change: Callable[[VacuumState, str], None] | None = None
 
     def __setattr__(self, key, value):
         super(VacuumState, self).__setattr__(key, value)
@@ -367,7 +368,7 @@ class DeebotEntity:
         else:
             LOGGER.warning("Unhandled http command: {} {}".format(command, data))
 
-    def _handle_state_change(self, state: VacuumState, attribute: str):
+    def _handle_state_change(self, state: VacuumState, attribute: str) -> None:
         for subscriber in self._subscribers:
             subscriber(state, attribute)
 

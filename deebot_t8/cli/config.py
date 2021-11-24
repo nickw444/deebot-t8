@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -17,7 +19,7 @@ class Config:
     continent: str
     device_id: str
 
-    credentials: Credentials = None
+    credentials: Credentials | None = None
 
     def serialize(self):
         creds = None

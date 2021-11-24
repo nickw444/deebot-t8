@@ -118,8 +118,9 @@ class SubscriptionClient:
 
             if len(self._subscribers) == 0:
                 LOGGER.info("No remaining subscribers, disconnecting from MQTT")
-                self._client.disconnect()
-                self._client = None
+                if self._client is not None:
+                    self._client.disconnect()
+                    self._client = None
 
     def _subscribe_topic(self, device: DeviceInfo):
         topic = (
@@ -132,4 +133,7 @@ class SubscriptionClient:
             + "/+"
         )
         LOGGER.debug("Subscribing to topic: {}".format(topic))
+        if self._client is None:
+            raise AssertionError("client is null")
+
         self._client.subscribe(topic, qos=0)

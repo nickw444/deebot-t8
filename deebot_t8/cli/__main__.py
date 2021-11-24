@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import signal
 import time
@@ -28,10 +30,10 @@ class TypedObj:
     config: Config
 
     auth_client: DeebotAuthClient
-    api_client: ApiClient = None
-    subscription_client: SubscriptionClient = None
+    api_client: ApiClient | None = None
+    subscription_client: SubscriptionClient | None = None
 
-    entity: DeebotEntity = None
+    entity: DeebotEntity | None = None
 
 
 @click.group()
@@ -105,7 +107,7 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
 
     if not regen_device and obj.config is not None and obj.config.device_id is not None:
         # Reuse existing device id if one exists
-        device_id = obj.config
+        device_id = obj.config.device_id
     else:
         device_id = md5_hex(str(time.time()))
 
@@ -132,6 +134,10 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
     write_config(obj.config_path, obj.config)
     obj.config.credentials = renew_access_tokens_impl(auth_client, obj.config)
     write_config(obj.config_path, obj.config)
+
+    if obj.config.credentials is None:
+        raise AssertionError
+
     click.echo(
         "Authenticated with user {}, token expires at {}".format(
             obj.config.credentials.user_id,
@@ -145,6 +151,10 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
 def renew_access_token(obj: TypedObj):
     obj.config.credentials = renew_access_tokens_impl(obj.auth_client, obj.config)
     write_config(obj.config_path, obj.config)
+
+    if obj.config.credentials is None:
+        raise AssertionError
+
     click.echo(
         "Renewed with user {}, token expires at {}".format(
             obj.config.credentials.user_id,
@@ -156,6 +166,9 @@ def renew_access_token(obj: TypedObj):
 @cli.command()
 @click.pass_obj
 def list_devices(obj: TypedObj):
+    if obj.api_client is None:
+        raise AssertionError
+
     devices = obj.api_client.get_devices_list()
     table_data = [
         ["device id", "name", "product category", "model", "status"],
@@ -179,6 +192,9 @@ def list_devices(obj: TypedObj):
 @click.pass_obj
 @click.argument("device-name", type=str, required=False)
 def device(obj: TypedObj, device_name):
+    if obj.api_client is None or obj.subscription_client is None:
+        raise AssertionError
+
     selected_device = None
     devices = obj.api_client.get_devices_list()
     for d in devices:
@@ -201,7 +217,9 @@ def device(obj: TypedObj, device_name):
 @click.pass_obj
 def subscribe(obj: TypedObj):
     # Silence the logger to allow our table to display nicely
-    # logging.getLogger('deebot_t8').setLevel(logging.ERROR)
+    logging.getLogger("deebot_t8").setLevel(logging.ERROR)
+    if obj.entity is None:
+        raise AssertionError
 
     def on_state_change(state: VacuumState, attribute: str):
         click.clear()
@@ -228,6 +246,9 @@ def subscribe(obj: TypedObj):
 @device.command()
 @click.pass_obj
 def clean(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.clean()
 
 
@@ -235,6 +256,9 @@ def clean(obj: TypedObj):
 @click.pass_obj
 @click.argument("areas", type=int, nargs=-1, required=True)
 def clean_areas(obj: TypedObj, areas):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.clean_areas(areas)
 
 
@@ -242,36 +266,54 @@ def clean_areas(obj: TypedObj, areas):
 @click.pass_obj
 @click.argument("custom", type=str)
 def clean_custom(obj: TypedObj, custom):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.clean_custom(custom)
 
 
 @device.command()
 @click.pass_obj
 def stop(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.stop()
 
 
 @device.command()
 @click.pass_obj
 def pause(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.pause()
 
 
 @device.command()
 @click.pass_obj
 def return_to_charge(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.return_to_charge()
 
 
 @device.command()
 @click.pass_obj
 def relocate(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.relocate()
 
 
 @device.command()
 @click.pass_obj
 def play_sound(obj: TypedObj):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.play_sound()
 
 
@@ -279,6 +321,9 @@ def play_sound(obj: TypedObj):
 @click.pass_obj
 @click.argument("enable", type=bool)
 def set_true_detect(obj: TypedObj, enable: bool):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.set_true_detect(enable)
 
 
@@ -286,6 +331,9 @@ def set_true_detect(obj: TypedObj, enable: bool):
 @click.pass_obj
 @click.argument("enable", type=bool)
 def set_clean_preference(obj: TypedObj, enable: bool):
+    if obj.entity is None:
+        raise AssertionError
+
     obj.entity.set_clean_preference(enable)
 
 

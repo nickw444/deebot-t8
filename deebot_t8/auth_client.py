@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -104,7 +106,7 @@ class DeebotAuthClient:
             )
 
     def do_get_authcode(self, uid: str, access_token: str):
-        params = {
+        params: Dict[str, str | int] = {
             "uid": uid,
             "accessToken": access_token,
             "bizType": "ECOVACS_IOT",
@@ -125,7 +127,7 @@ class DeebotAuthClient:
         params["authAppkey"] = AUTH_CLIENT_KEY
 
         # Do request
-        resp = requests.get(self._get_authcode_url(), params)
+        resp = requests.get(self._get_authcode_url(), params=params)
         resp.raise_for_status()
         resp_json = resp.json()
 

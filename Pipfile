@@ -9,6 +9,7 @@ name = "pypi"
 flake8 = "*"
 mypy = "*"
 black = "*"
+types-requests = "*"
 
 [requires]
 python_version = "3.9"
