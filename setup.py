@@ -23,11 +23,11 @@ setup(
         "Programming Language :: Python",
     ],
     install_requires=[
-        "requests==2.25.1",
+        "requests>=2.25.1,<3.0.0",
         'dataclasses;python_version<"3.7"',
-        "paho-mqtt==1.5.1",
+        "paho-mqtt>=1.5.1,<2.0.0",
     ],
-    extras_require={"cli": ["click==8.0.1", "terminaltables==3.1.0"]},
+    extras_require={"cli": ["click>=8.0.1,<9.0.0", "terminaltables>=3.1.0,<4.0.0"]},
     entry_points={
         "console_scripts": ["deebot-t8=deebot_t8.cli.__main__:cli"],
     },
