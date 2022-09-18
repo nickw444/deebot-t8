@@ -65,10 +65,12 @@ def cli(ctx, config_file):
             portal_client=portal_client,
             device_id=config.device_id,
             country=config.country,
+            vendor=config.vendor,
         )
         authenticator = Authenticator(
             auth_client=auth_client,
             country=config.country,
+            vendor=config.vendor,
             device_id=config.device_id,
             account_id=config.username,
             password_hash=config.password_hash,
@@ -100,9 +102,10 @@ def renew_access_tokens_impl(auth: DeebotAuthClient, config: Config):
 @click.option("--username", type=str, required=True)
 @click.option("--password", type=str, required=True)
 @click.option("--country", type=str, required=True)
+@click.option("--vendor", type=str, required=True)
 @click.option("--continent", type=str, required=True)
 @click.option("--regen-device", type=bool)
-def login(obj: TypedObj, username, password, country, continent, regen_device):
+def login(obj: TypedObj, username, password, country, vendor, continent, regen_device):
     # TODO(NW): Infer continent from country
 
     if not regen_device and obj.config is not None and obj.config.device_id is not None:
@@ -116,6 +119,7 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
         password_hash=md5_hex(password),
         device_id=device_id,
         country=country,
+        vendor=vendor,
         continent=continent,
     )
     # Recreate clients for this special use case to apply new configuration
@@ -129,6 +133,7 @@ def login(obj: TypedObj, username, password, country, continent, regen_device):
         portal_client=portal_client,
         device_id=obj.config.device_id,
         country=obj.config.country,
+        vendor=obj.config.vendor
     )
 
     write_config(obj.config_path, obj.config)

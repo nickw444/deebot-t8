@@ -16,6 +16,7 @@ class Config:
     username: str
     password_hash: str
     country: str
+    vendor: str
     continent: str
     device_id: str
 
@@ -33,6 +34,7 @@ class Config:
             "username": self.username,
             "passwordHash": self.password_hash,
             "country": self.country,
+            "vendor": self.vendor,
             "continent": self.continent,
             "deviceId": self.device_id,
             "credentials": creds,
@@ -52,6 +54,7 @@ class Config:
             username=o["username"],
             password_hash=o["passwordHash"],
             country=o["country"],
+            vendor=o["vendor"],
             continent=o["continent"],
             device_id=o["deviceId"],
             credentials=creds,
