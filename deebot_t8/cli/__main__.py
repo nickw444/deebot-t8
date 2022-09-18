@@ -70,7 +70,6 @@ def cli(ctx, config_file):
         authenticator = Authenticator(
             auth_client=auth_client,
             country=config.country,
-            vendor=config.vendor,
             device_id=config.device_id,
             account_id=config.username,
             password_hash=config.password_hash,

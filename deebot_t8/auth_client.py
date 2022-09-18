@@ -197,7 +197,6 @@ class Authenticator:
         self,
         auth_client: DeebotAuthClient,
         country: str,
-        vendor: str,
         device_id: str,
         account_id: str,
         password_hash: str,
@@ -206,7 +205,6 @@ class Authenticator:
     ):
         self._auth_client = auth_client
         self._country = country
-        self._vendor = vendor
         self._device_id = device_id
 
         self._account_id = account_id
