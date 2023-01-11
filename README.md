@@ -1,3 +1,9 @@
+# ⚠️ Warning: Abandonware Ahead ⚠️
+
+This library is no longer under active development, as I have now migrated my Home Assistant integration to use [DeebotUniverse/Deebot-4-Home-Assistant](https://github.com/DeebotUniverse/Deebot-4-Home-Assistant)
+
+---
+
 # Deebot T8
 
 Yet another Deebot client library, intended to bring better support to Ozmo T8 range of robots.
