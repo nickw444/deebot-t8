@@ -539,13 +539,31 @@ class DeebotEntity:
         )
 
     def pause(self):
-        self.exc_command("clean_V2", {"act": "pause"})
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "pause",
+                "content": {"count": "", "donotClean": "", "type": "", "value": ""},
+            }
+        )
 
     def resume(self):
-        self.exc_command("clean_V2", {"act": "resume"})
+        self.exc_command(
+            "clean_V2",
+            {
+                "act": "resume",
+                "content": {"count": "", "donotClean": "", "type": "", "value": ""},
+            }
+        )
 
     def return_to_charge(self):
-        self.exc_command("charge", {"act": "go"})
+        self.exc_command(
+            "charge",
+            {
+                "act": "go",
+                "content": {"count": "", "donotClean": "", "type": "", "value": ""},
+            }
+        )
 
     def relocate(self):
         self.exc_command("setRelocationState", {"mode": "manu"})

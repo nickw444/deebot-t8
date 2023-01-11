@@ -15,26 +15,34 @@ from .urls import USER_DO_PATH, REALM
 
 LOGGER = logging.getLogger(__name__)
 
-CLIENT_KEY = "1520391301804"
-CLIENT_SECRET = "6c319b2a5cd3e66e39159c2e28f2fce9"
-AUTH_CLIENT_KEY = "1520391491841"
-AUTH_CLIENT_SECRET = "77ef58ce3afbe337da74aa8c5ab963a9"
-
 
 class DeebotAuthClient:
-    def __init__(self, portal_client: PortalClient, device_id: str, country: str):
+    def __init__(self, portal_client: PortalClient, device_id: str, country: str, vendor: str):
         self._portal_client = portal_client
         self._device_id = device_id
         self._country = country
+        self._vendor = vendor
         self._meta = {
             "country": country,
             "lang": "EN",
             "deviceId": device_id,
-            "appCode": "global_e",
-            "appVersion": "1.6.3",
             "channel": "google_play",
             "deviceType": "1",
         }
+        if self._vendor == 'ecovacs':
+            self._CLIENT_KEY = "1520391301804"
+            self._CLIENT_SECRET = "6c319b2a5cd3e66e39159c2e28f2fce9"
+            self._AUTH_CLIENT_KEY = "1520391491841"
+            self._AUTH_CLIENT_SECRET = "77ef58ce3afbe337da74aa8c5ab963a9"
+            self._meta["appCode"] = "global_e"
+            self._meta["appVersion"] = "1.6.3"
+        elif self._vendor == 'yeedi':
+            self._CLIENT_KEY = "1581917520081"
+            self._CLIENT_SECRET = "ed5b3dd9a0253de7d90305d077eb5fee"
+            self._AUTH_CLIENT_KEY = "1581923437995"
+            self._AUTH_CLIENT_SECRET = "304a71592690995b2bb304e66b5ddee6"
+            self._meta["appCode"] = "yd_global_e"
+            self._meta["appVersion"] = "1.3.0"
 
     def _sign_params(
         self,
@@ -53,15 +61,15 @@ class DeebotAuthClient:
         tld = "cn" if self._country == "cn" else "com"
         login_path = "user/loginCheckMobile" if self._country == "cn" else "user/login"
         return (
-            "https://gl-{country}-api.ecovacs.{tld}/v1/private/{country}/"
+            "https://gl-{country}-api.{vendor}.{tld}/v1/private/{country}/"
             "{lang}/{deviceId}/{appCode}/{appVersion}/{channel}/"
             "{deviceType}/{login_path}"
-        ).format(login_path=login_path, tld=tld, **self._meta)
+        ).format(login_path=login_path, tld=tld, vendor=self._vendor, **self._meta)
 
     def _get_authcode_url(self):
         tld = "cn" if self._country == "cn" else "com"
         return (
-            f"https://gl-{self._country}-openapi.ecovacs.{tld}/"
+            f"https://gl-{self._country}-openapi.{self._vendor}.{tld}/"
             f"v1/global/auth/getAuthCode"
         )
 
@@ -78,10 +86,10 @@ class DeebotAuthClient:
 
         # Sign params
         params_sig = self._sign_params(
-            {**self._meta, **params}, CLIENT_KEY, CLIENT_SECRET
+            {**self._meta, **params}, self._CLIENT_KEY, self._CLIENT_SECRET
         )
         params["authSign"] = params_sig
-        params["authAppkey"] = CLIENT_KEY
+        params["authAppkey"] = self._CLIENT_KEY
 
         url = self._get_login_url()
 
@@ -120,11 +128,11 @@ class DeebotAuthClient:
                 "openId": "global",
                 **params,
             },
-            AUTH_CLIENT_KEY,
-            AUTH_CLIENT_SECRET,
+            self._AUTH_CLIENT_KEY,
+            self._AUTH_CLIENT_SECRET,
         )
         params["authSign"] = params_sig
-        params["authAppkey"] = AUTH_CLIENT_KEY
+        params["authAppkey"] = self._AUTH_CLIENT_KEY
 
         # Do request
         resp = requests.get(self._get_authcode_url(), params=params)
@@ -144,7 +152,10 @@ class DeebotAuthClient:
             )
 
     def do_login_by_iot_token(self, user_id: str, auth_code: str):
-        org = "ECOCN" if self._country == "cn" else "ECOWW"
+        if self._vendor == 'ecovacs':
+            org = "ECOCN" if self._country == "cn" else "ECOWW"
+        elif self._vendor == 'yeedi':
+            org = "ECOYDCN" if self._country == "cn" else "ECOYDWW"
         country = "Chinese" if self._country == "cn" else self._country.upper()
 
         resp = self._portal_client.do_post(
